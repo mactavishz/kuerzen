@@ -1,0 +1,10 @@
+# editors
+.vscode
+.idea
+
+# misc
+.DS_Store
+
+# go
+go.work
+go.work.sum
