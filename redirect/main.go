@@ -1,9 +1,27 @@
 package main
 
 import (
-	"fmt"
+	"log"
+	"os"
+
+	"github.com/gofiber/fiber/v2"
 )
 
+const DEFAULT_PORT = "3001"
+
 func main() {
-	fmt.Println("Hello world, redirect!")
+	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	app := fiber.New()
+
+	app.Get("/api/v1/url/:shortURL", func(c *fiber.Ctx) error {
+		return c.SendString("TODO: " + c.Params("shortURL"))
+	})
+
+	port := os.Getenv("REDIRECT_PORT")
+	if len(port) == 0 {
+		port = DEFAULT_PORT
+	}
+	log.Printf("Redirect service listening on port :%s", port)
+	app.Listen(":" + port)
 }
