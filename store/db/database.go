@@ -1,4 +1,4 @@
-package store
+package db
 
 import (
 	"database/sql"
@@ -14,7 +14,7 @@ import (
 // Opens a connection to database use pgx as the driver
 // The returned [DB] is safe for concurrent use by multiple goroutines (maintains a pool of connection)
 func Open() (*sql.DB, error) {
-	db, err := sql.Open("pgx", os.Getenv("SHORTENER_DB_URL"))
+	db, err := sql.Open("pgx", os.Getenv("KUERZEN_DB_URL"))
 
 	if err != nil {
 		return nil, fmt.Errorf("db: open %w", err)
