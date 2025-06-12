@@ -2,32 +2,18 @@
 services:
   db:
     image: postgres:17-alpine
-    env_file:
-      - .env
-    ports:
-      - 5432:5432
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+    env_file: [.env]
+    ports: [5432:5432]
+    volumes: [./local/postgres/data:/var/lib/postgresql/data]
   analytics-db:
     image: influxdb:2-alpine
-    env_file:
-      - .env
-    ports:
-      - 8086:8086
+    env_file: [.env]
+    ports: [8086:8086]
     volumes:
-      - influxdb_data:/var/lib/influxdb2
-      - influxdb_config:/etc/influxdb2
+      - ./local/influxdb/data:/var/lib/influxdb2
+      - ./local/influxdb/config:/etc/influxdb2
   cache:
     image: valkey/valkey:8.1.1-alpine
-    env_file:
-      - .env
-    ports:
-      - 6379:6379
-    volumes:
-      - cache_data:/data
-
-volumes:
-  postgres_data:
-  influxdb_data:
-  influxdb_config:
-  cache_data:
+    env_file: [.env]
+    ports: [6379:6379]
+    volumes: [./local/valkey/data:/data]
