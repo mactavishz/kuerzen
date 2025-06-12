@@ -13,6 +13,22 @@ A simple distributed URL shortener that scales.
 
 ### Setup
 
+#### Go Workspace
+
+Since there are some dependencies between the services, it's best to create a Go workspace, run the following command in the root of the project:
+
+```bash
+go work init
+go work use ./store
+go work use ./shortener
+go work use ./redirect
+go work use ./analytics
+```
+
+Because go workspace is only for local development, the `go.work` file is not included in the repository.
+
+### Environment Variables
+
 Create a `.env` file in the root of the project and add the following variables, you can use the `.env.example` file as a reference.
 
 - ports:
@@ -30,8 +46,8 @@ Create a `.env` file in the root of the project and add the following variables,
   - `DOCKER_INFLUXDB_INIT_ORG` - The organization for the influxdb database.
   - `DOCKER_INFLUXDB_INIT_BUCKET` - The bucket for the influxdb database.
   - `DOCKER_INFLUXDB_INIT_ADMIN_TOKEN` - The admin token for the influxdb database.
-- shortener:
-  - `SHORTENER_DB_URL` - The database connection url for the shortener service
+- miscellaneous:
+  - `KUERZEN_DB_URL` - The database connection url for the shortener service
 
 ### Run the services
 
