@@ -18,10 +18,10 @@ func main() {
 		return c.SendString("TODO: " + c.Params("shortURL"))
 	})
 
-	port := os.Getenv("REDIRECT_PORT")
+	port := os.Getenv("REDIRECTOR_PORT")
 	if len(port) == 0 {
 		port = DEFAULT_PORT
 	}
-	log.Printf("Redirect service listening on port :%s", port)
+	log.Printf("Redirector service listening on port :%s", port)
 	app.Listen(":" + port)
 }

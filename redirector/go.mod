@@ -1,4 +1,4 @@
-module github.com/mactavishz/kuerzen/redirect
+module github.com/mactavishz/kuerzen/redirector
 
 go 1.23.4
 

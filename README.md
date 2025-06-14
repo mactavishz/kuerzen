@@ -21,7 +21,7 @@ Since there are some dependencies between the services, it's best to create a Go
 go work init
 go work use ./store
 go work use ./shortener
-go work use ./redirect
+go work use ./redirector
 go work use ./analytics
 ```
 
@@ -33,7 +33,7 @@ Create a `.env` file in the root of the project and add the following variables,
 
 - ports:
   - `SHORTENER_PORT` - The port for the shortener service.
-  - `REDIRECT_PORT` - The port for the redirect service.
+  - `REDIRECTOR_PORT` - The port for the redirect service.
   - `ANALYTICS_PORT` - The port for the analytics service.
 - postgres:
   - `POSTGRES_USER` - The username for the postgres database.
@@ -60,7 +60,7 @@ docker compose up -d
 Then, start the services:
 
 ```bash
-godotenv -f .env go run ./cmd/shortener/main.go
-godotenv -f .env go run ./cmd/redirect/main.go
-godotenv -f .env go run ./cmd/analytics/main.go
+godotenv -f .env go run ./shortener/main.go
+godotenv -f .env go run ./redirector/main.go
+godotenv -f .env go run ./analytics/main.go
 ```
