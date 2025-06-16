@@ -17,7 +17,7 @@ func NewPostgresURLStore(db *sql.DB) *PostgresURLStore {
 	}
 }
 
-func (pgs *PostgresURLStore) Shorten(longUrl string) error {
+func (pgs *PostgresURLStore) CreateShortURL(shortURL string) error {
 	panic("TODO")
 }
 
