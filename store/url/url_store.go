@@ -1,9 +1,14 @@
 package url
 
-import "database/sql"
+import (
+	"database/sql"
+	"errors"
+
+	"github.com/jackc/pgx/v5/pgconn"
+)
 
 type URLStore interface {
-	CreateShortURL(string) error
+	CreateShortURL(string, string) error
 	GetLongURL(string) (string, error)
 }
 
@@ -17,10 +22,35 @@ func NewPostgresURLStore(db *sql.DB) *PostgresURLStore {
 	}
 }
 
-func (pgs *PostgresURLStore) CreateShortURL(shortURL string) error {
-	panic("TODO")
+var ErrDuplicateLongURL = errors.New("long URL already exists")
+
+func (pgs *PostgresURLStore) CreateShortURL(shortURL string, longURL string) error {
+	tx, err := pgs.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	query := `
+	INSERT INTO urls(short_url, long_url)
+	VALUES($1, $2)
+	`
+	_, err = tx.Exec(query, shortURL, longURL)
+	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" { // unique_violation
+			return ErrDuplicateLongURL
+		}
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
-func (pgs *PostgresURLStore) GetLongURL(longUrl string) (string, error) {
+func (pgs *PostgresURLStore) GetLongURL(shortURL string) (string, error) {
 	panic("TODO")
 }
