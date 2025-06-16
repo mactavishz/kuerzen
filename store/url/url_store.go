@@ -3,7 +3,7 @@ package url
 import "database/sql"
 
 type URLStore interface {
-	Shorten(string) error
+	CreateShortURL(string) error
 	GetLongURL(string) (string, error)
 }
 
