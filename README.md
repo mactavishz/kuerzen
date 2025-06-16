@@ -48,6 +48,7 @@ Create a `.env` file in the root of the project and add the following variables,
   - `DOCKER_INFLUXDB_INIT_ADMIN_TOKEN` - The admin token for the influxdb database.
 - miscellaneous:
   - `KUERZEN_DB_URL` - The database connection url for the shortener service
+  - `KUERZEN_HOST` - The host for the application
 
 ### Run the services
 
