@@ -14,3 +14,7 @@ go.work.sum
 
 # data
 local/
+
+# tmp
+tmp/
+**/tmp/

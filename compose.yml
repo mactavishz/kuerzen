@@ -1,10 +1,15 @@
----
 services:
   db:
     image: postgres:17-alpine
     env_file: [.env]
     ports: [5432:5432]
     volumes: [./local/postgres/data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+    networks:
+      - kuerzen-network
   analytics-db:
     image: influxdb:2-alpine
     env_file: [.env]
@@ -12,8 +17,101 @@ services:
     volumes:
       - ./local/influxdb/data:/var/lib/influxdb2
       - ./local/influxdb/config:/etc/influxdb2
+    healthcheck:
+      test: ["CMD-SHELL", "influx ping"]
+      interval: 5s
+      timeout: 5s
+    networks:
+      - kuerzen-network
   cache:
     image: valkey/valkey:8.1.1-alpine
     env_file: [.env]
     ports: [6379:6379]
     volumes: [./local/valkey/data:/data]
+    healthcheck:
+      test: ["CMD-SHELL", "valkey-cli PING"]
+      interval: 5s
+      timeout: 5s
+    networks:
+      - kuerzen-network
+  api-gateway:
+    image: caddy:2-alpine
+    env_file: [.env]
+    ports:
+      - 80:80
+      - 443:443
+    volumes:
+      - ./api-gateway:/etc/caddy
+      - ./local/caddy/data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+    networks:
+      - kuerzen-network
+  shortener:
+    build:
+      context: ./
+      dockerfile: ./shortener/Dockerfile.dev
+    working_dir: /app/shortener
+    env_file: [.env]
+    ports:
+      - ${SHORTENER_PORT}:${SHORTENER_PORT}
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+      analytics-db:
+        condition: service_healthy
+      api-gateway:
+        condition: service_healthy
+    networks:
+      - kuerzen-network
+  redirector:
+    build:
+      context: ./
+      dockerfile: ./redirector/Dockerfile.dev
+    working_dir: /app/redirector
+    env_file: [.env]
+    ports:
+      - ${REDIRECTOR_PORT}:${REDIRECTOR_PORT}
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+      analytics-db:
+        condition: service_healthy
+      api-gateway:
+        condition: service_healthy
+    networks:
+      - kuerzen-network
+  analytics:
+    build:
+      context: ./
+      dockerfile: ./analytics/Dockerfile.dev
+    working_dir: /app/analytics
+    env_file: [.env]
+    ports:
+      - ${ANALYTICS_PORT}:${ANALYTICS_PORT}
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      cache:
+        condition: service_healthy
+      analytics-db:
+        condition: service_healthy
+      api-gateway:
+        condition: service_healthy
+    networks:
+      - kuerzen-network
+networks:
+  kuerzen-network:
+    driver: bridge
