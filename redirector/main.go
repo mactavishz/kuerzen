@@ -5,6 +5,10 @@ import (
 	"os"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/mactavishz/kuerzen/redirector/api"
+	"github.com/mactavishz/kuerzen/store/db"
+	"github.com/mactavishz/kuerzen/store/migrations"
+	store "github.com/mactavishz/kuerzen/store/url"
 )
 
 const DEFAULT_PORT = "3001"
@@ -12,11 +16,20 @@ const DEFAULT_PORT = "3001"
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
-	app := fiber.New()
+	pgDB, err := db.Open()
+	if err != nil {
+		log.Fatalf("could not connect to database: %v", err)
+	}
 
-	app.Get("/api/v1/url/:shortURL", func(c *fiber.Ctx) error {
-		return c.SendString("TODO: " + c.Params("shortURL"))
-	})
+	err = db.MigrateFS(pgDB, migrations.FS, ".")
+	if err != nil {
+		log.Fatalf("could not run database migrations: %v", err)
+	}
+	app := fiber.New()
+	urlStore := store.NewPostgresURLStore(pgDB)
+	handler := api.NewRedirectHandler(urlStore)
+
+	app.Get("/api/v1/url/:shortURL", handler.HandleRedirect)
 
 	port := os.Getenv("REDIRECTOR_PORT")
 	if len(port) == 0 {
