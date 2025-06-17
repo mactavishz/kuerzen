@@ -23,6 +23,7 @@ func NewPostgresURLStore(db *sql.DB) *PostgresURLStore {
 }
 
 var ErrDuplicateLongURL = errors.New("long URL already exists")
+var ErrShortURLNotFound = errors.New("short URL not found")
 
 func (pgs *PostgresURLStore) CreateShortURL(shortURL string, longURL string) error {
 	tx, err := pgs.db.Begin()
@@ -52,5 +53,17 @@ func (pgs *PostgresURLStore) CreateShortURL(shortURL string, longURL string) err
 }
 
 func (pgs *PostgresURLStore) GetLongURL(shortURL string) (string, error) {
-	panic("TODO")
+	var longURL string
+	query := `
+	SELECT long_url from urls
+	WHERE short_url = $1
+	`
+	err := pgs.db.QueryRow(query, shortURL).Scan(&longURL)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", ErrShortURLNotFound
+		}
+		return "", err
+	}
+	return longURL, nil
 }
