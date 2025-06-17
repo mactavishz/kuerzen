@@ -9,7 +9,6 @@ A simple distributed URL shortener that scales.
 - Install [Golang](https://go.dev/dl/) >= 1.23.4
 - Install [Docker](https://docs.docker.com/get-docker/)
 - Install [Docker Compose](https://docs.docker.com/compose/install/)
-- Install [Go dotenv](https://github.com/joho/godotenv) as a command line tool
 
 ### Setup
 
@@ -50,18 +49,42 @@ Create a `.env` file in the root of the project and add the following variables,
   - `KUERZEN_DB_URL` - The database connection url for the shortener service
   - `KUERZEN_HOST` - The host for the application
 
-### Run the services
+### Start the services
 
-First, start the database services:
+Run the following command to start all the services:
 
 ```bash
 docker compose up -d
 ```
 
-Then, start the services:
+It might take a while to start the services, as the services are dependent on each other. After the services are started, you can access the API Gateway at `http[s]://localhost`.
+
+All the go services are using hot reload using [Air](https://github.com/air-verse/air), so you can change the code and the changes will be reflected immediately.
+
+### API Endpoints
+
+#### Health Check
 
 ```bash
-godotenv -f .env go run ./shortener/main.go
-godotenv -f .env go run ./redirector/main.go
-godotenv -f .env go run ./analytics/main.go
+curl -X GET http://localhost/health
+```
+
+#### URL Shortening
+
+```bash
+curl -X POST http://localhost/create \
+-H "Content-Type: application/json" \
+-d '{"url": "https://www.google.com"}'
+```
+
+#### URL Redirecting
+
+```bash
+curl -X GET http://localhost/[shorten_id]
+```
+
+#### Analytics
+
+```bash
+curl -X GET http://localhost/events
 ```
