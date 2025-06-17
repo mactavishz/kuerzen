@@ -1,3 +1,49 @@
-localhost
+localhost {
+	log {
+		output stdout
+		format console
+	}
 
-respond "Hello, world!"
+	# matcher for redirect URLs (shortened URLs)
+	@redirect_url {
+		method GET HEAD
+		path_regexp redirect ^/([a-zA-Z0-9]+)$
+	}
+
+	# Handle health checks
+	handle /health {
+		respond "OK" 200
+	}
+
+	# Handle URL shortening endpoint
+	handle_path /create {
+		rewrite * /api/v1/url/shorten
+		reverse_proxy shortener:{env.SHORTENER_PORT} {
+			header_up X-Real-IP {remote_ip}
+			header_up X-Forwarded-For {remote_ip}
+		}
+	}
+
+	# Handle analytics/events endpoint
+	handle_path /events {
+		rewrite * /api/v1/events
+		reverse_proxy analytics:{env.ANALYTICS_PORT} {
+			header_up X-Real-IP {remote_ip}
+			header_up X-Forwarded-For {remote_ip}
+		}
+	}
+
+	# Handle redirect requests for shortened URLs
+	handle @redirect_url {
+		rewrite * /api/v1/url{uri}
+		reverse_proxy redirector:{env.REDIRECTOR_PORT} {
+			header_up X-Real-IP {remote_ip}
+			header_up X-Forwarded-For {remote_ip}
+		}
+	}
+
+	# Catch-all for unmatched routes
+	handle {
+		respond "Not Found" 404
+	}
+}
