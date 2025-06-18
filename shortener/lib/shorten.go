@@ -6,10 +6,24 @@ import (
 	"github.com/jxskiss/base62"
 )
 
-// To implement correct shortening is non-trivial
-// Usually, the long url needs to be associated with a global unique id (number)
-// Then this id is used for the base62 encoding
-// However, implementing a reliable distributed global unique identifier generator is out of the scope of this project
+// URL shortening using hash-based approach with collision trade-offs
+//
+// COLLISION ANALYSIS:
+// - 8 chars of base62 = 62^8 ≈ 218 trillion possible values
+// - Collision probability follows birthday paradox:
+//   - 1K URLs: ~0.000002% collision chance
+//   - 100K URLs: ~0.0023% collision chance
+//   - 1M URLs: ~0.23% collision chance
+//
+// PRODUCTION ALTERNATIVES:
+// The robust approach uses a reliable distributed counter/snowflake ID:
+// 1. Generate globally unique sequential ID for each URL
+// 2. Base62-encode the ID (guarantees no collisions)
+//
+// This hash-based approach is only acceptable for:
+// - Development/prototyping environments
+// - Applications with <100K URLs where ~0.2% collision risk is tolerable
+// - Systems with collision detection and retry logic
 func ToShortURL(longURL string, length int) string {
 	hash := sha256.Sum256([]byte(longURL))
 	encoded := base62.EncodeToString(hash[:])
