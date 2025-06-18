@@ -22,7 +22,7 @@ import (
 //
 // This hash-based approach is only acceptable for:
 // - Development/prototyping environments
-// - Applications with <100K URLs where ~0.2% collision risk is tolerable
+// - Applications with roughly 1M URLs where ~0.23% collision risk is tolerable
 // - Systems with collision detection and retry logic
 func ToShortURL(longURL string, length int) string {
 	hash := sha256.Sum256([]byte(longURL))
