@@ -104,9 +104,3 @@ curl -X POST http://localhost/create \
 ```bash
 curl -X GET http://localhost/[shorten_id]
 ```
-
-#### Analytics
-
-```bash
-curl -X GET http://localhost/events
-```
