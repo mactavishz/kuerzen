@@ -9,6 +9,8 @@ A simple distributed URL shortener that scales.
 - Install [Golang](https://go.dev/dl/) >= 1.23.4
 - Install [Docker](https://docs.docker.com/get-docker/)
 - Install [Docker Compose](https://docs.docker.com/compose/install/)
+- Install [Protocol Buffer Compiler](https://grpc.io/docs/protoc-installation/)
+- Install [Make](https://www.gnu.org/software/make/) or [GNU Make](https://www.gnu.org/software/make/)
 
 ### Setup
 
@@ -52,6 +54,14 @@ Create a `.env` file in the root of the project and add the following variables,
   - `KUERZEN_DB_URL` - The database connection url for the shortener service
   - `ANALYTICS_DB_URL` - The database connection url for the analytics service
   - `KUERZEN_HOST` - The host for the application
+
+### Generate Protobuf Code
+
+Currently, only the analytics service has a protobuf file, so if you need to generate the code for the analytics service (e.g. when you update the protobuf file), run the following command in the `analytics` directory:
+
+```bash
+make gen
+```
 
 ### Start the services
 
