@@ -61,6 +61,14 @@ It might take a while to start the services, as the services are dependent on ea
 
 All the go services are using hot reload using [Air](https://github.com/air-verse/air), so you can change the code and the changes will be reflected immediately.
 
+### End the services
+
+Run the following command to stop and remove all running services:
+
+```bash
+docker compose down
+```
+
 ### API Endpoints
 
 #### Health Check
