@@ -1,0 +1,32 @@
+syntax = "proto3";
+
+package pb;
+
+option go_package="github.com/mactavishz/kuerzen/analytics/pb";
+
+message CreateShortURLEventRequest {
+  string url = 1; // The original URL to be shortened
+  bool success = 2; // Indicates if the URL shortening was successful
+  int32 api_version = 3; // The version of the API used for shortening
+  int64 timestamp = 4; // The timestamp of the event in milliseconds since epoch
+}
+
+message RedirectShortURLEventRequest {
+  string short_url = 1; // The shortened URL that was accessed
+  bool success = 2; // Indicates if the redirection was successful
+  int32 api_version = 3; // The version of the API used for redirection
+  int64 timestamp = 4; // The timestamp of the event in milliseconds since epoch
+}
+
+message EventResponse {
+  string message = 1; // A message indicating the result of the event recording
+  bool success = 2; // Indicates if the event was recorded successfully
+}
+
+service AnalyticsService {
+  // Record an event when a URL is created
+  rpc CreateShortURLEvent(CreateShortURLEventRequest) returns (EventResponse);
+
+  // Record an event when a short URL is accessed
+  rpc RedirectShortURLEvent(RedirectShortURLEventRequest) returns (EventResponse);
+}
