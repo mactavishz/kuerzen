@@ -34,6 +34,9 @@ Create a `.env` file in the root of the project and add the following variables,
   - `SHORTENER_PORT` - The port for the shortener service.
   - `REDIRECTOR_PORT` - The port for the redirect service.
   - `ANALYTICS_PORT` - The port for the analytics service.
+  - `ANALYTICS_DB_PORT` - The port for the analytics database.
+  - `CACHE_PORT` - The port for the cache.
+  - `DB_PORT` - The port for the database.
 - postgres:
   - `POSTGRES_USER` - The username for the postgres database.
   - `POSTGRES_PASSWORD` - The password for the postgres database.
@@ -47,6 +50,7 @@ Create a `.env` file in the root of the project and add the following variables,
   - `DOCKER_INFLUXDB_INIT_ADMIN_TOKEN` - The admin token for the influxdb database.
 - miscellaneous:
   - `KUERZEN_DB_URL` - The database connection url for the shortener service
+  - `ANALYTICS_DB_URL` - The database connection url for the analytics service
   - `KUERZEN_HOST` - The host for the application
 
 ### Start the services
