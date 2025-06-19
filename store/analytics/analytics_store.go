@@ -34,7 +34,7 @@ type URLRedirectEvent struct {
 type AnalyticsStore interface {
 	WriteURLCreationEvent(*URLCreationEvent)
 	WriteURLRedirectEvent(*URLRedirectEvent)
-	Flush() error
+	Flush()
 }
 
 type InfluxDBAnalyticsStore struct {
