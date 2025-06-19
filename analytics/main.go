@@ -6,8 +6,10 @@ import (
 	"os"
 	"time"
 
+	influxdb2 "github.com/influxdata/influxdb-client-go/v2"
 	server "github.com/mactavishz/kuerzen/analytics/grpc"
 	"github.com/mactavishz/kuerzen/analytics/pb"
+	store "github.com/mactavishz/kuerzen/store/analytics"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 )
@@ -30,7 +32,9 @@ func main() {
 	}
 	log.Printf("Analytics service listening on port :%s", port)
 
-	gprcServer := server.NewAnalyticsServer()
+	client := influxdb2.NewClient(os.Getenv("ANALYTICS_DB_URL"), os.Getenv("DOCKER_INFLUXDB_INIT_ADMIN_TOKEN"))
+	analyticsStore := store.NewInfluxDBAnalyticsStore(client, os.Getenv("DOCKER_INFLUXDB_INIT_ORG"), os.Getenv("DOCKER_INFLUXDB_INIT_BUCKET"))
+	gprcServer := server.NewAnalyticsServer(analyticsStore)
 	// Define keepalive server parameters
 	kasp := keepalive.ServerParameters{
 		Time:    30 * time.Second, // Ping the client if it is idle for 30 seconds to ensure the connection is still active

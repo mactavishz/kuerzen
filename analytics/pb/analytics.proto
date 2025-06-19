@@ -6,17 +6,19 @@ option go_package="github.com/mactavishz/kuerzen/analytics/pb";
 
 message CreateShortURLEventRequest {
   string url = 1; // The original URL to be shortened
-  bool success = 2; // Indicates if the URL shortening was successful
-  int32 api_version = 3; // The version of the API used for shortening
-  int64 timestamp = 4; // The timestamp of the event in milliseconds since epoch
+  string service_name = 2; // The name of the service that sends the request
+  bool success = 3; // Indicates if the URL shortening was successful
+  int32 api_version = 4; // The version of the API used for shortening
+  int64 timestamp = 5; // The timestamp of the event in milliseconds since epoch
 }
 
 message RedirectShortURLEventRequest {
   string short_url = 1; // The shortened URL that was accessed
   string long_url = 2; // The long URL that was redirected to
-  bool success = 3; // Indicates if the redirection was successful
-  int32 api_version = 4; // The version of the API used for redirection
-  int64 timestamp = 5; // The timestamp of the event in milliseconds since epoch
+  string service_name = 3; // The name of the service that sends the request
+  bool success = 4; // Indicates if the redirection was successful
+  int32 api_version = 5; // The version of the API used for redirection
+  int64 timestamp = 6; // The timestamp of the event in milliseconds since epoch
 }
 
 message EventResponse {
