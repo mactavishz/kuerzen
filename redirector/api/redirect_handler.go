@@ -43,13 +43,13 @@ func (h *RedirectHandler) HandleRedirect(c *fiber.Ctx) error {
 			log.Printf("[HandleRedirect] short URL not found: %s\n", shortURL)
 			err = h.client.SendURLRedirectEvent(context.TODO(), evt)
 			if err != nil {
-				log.Printf("[HandleRedirect] failed to send anlytics: %v\n", err)
+				log.Printf("[HandleRedirect] failed to send event: %v\n", err)
 			}
 			return c.Status(fiber.StatusNotFound).SendString("Not Found")
 		}
 		err = h.client.SendURLRedirectEvent(context.TODO(), evt)
 		if err != nil {
-			log.Printf("[HandleRedirect] failed to send anlytics: %v\n", err)
+			log.Printf("[HandleRedirect] failed to send event: %v\n", err)
 		}
 		log.Printf("[HandleRedirect] failed to get long URL: %v\n", err)
 		return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
@@ -57,7 +57,7 @@ func (h *RedirectHandler) HandleRedirect(c *fiber.Ctx) error {
 	evt.Success = true
 	err = h.client.SendURLRedirectEvent(context.TODO(), evt)
 	if err != nil {
-		log.Printf("[HandleRedirect] failed to send anlytics: %v\n", err)
+		log.Printf("[HandleRedirect] failed to send event: %v\n", err)
 	}
 	// use 307 to prevent browsers from caching the redirect
 	return c.Redirect(longURL, fiber.StatusTemporaryRedirect)

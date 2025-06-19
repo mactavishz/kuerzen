@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/gofiber/fiber/v2"
+	grpc "github.com/mactavishz/kuerzen/analytics/grpc"
 	"github.com/mactavishz/kuerzen/shortener/api"
 	"github.com/mactavishz/kuerzen/store/db"
 	"github.com/mactavishz/kuerzen/store/migrations"
@@ -28,8 +29,11 @@ func main() {
 
 	app := fiber.New()
 	urlStore := store.NewPostgresURLStore(pgDB)
-	handler := api.NewShortenHandler(urlStore)
-
+	client, err := grpc.NewAnalyticsGRPCClient(os.Getenv("ANALYTICS_SERVICE_URL"))
+	if err != nil {
+		log.Fatalf("could not set up grpc client: %v", err)
+	}
+	handler := api.NewShortenHandler(urlStore, client)
 	app.Post("/api/v1/url/shorten", handler.HandleShortenURL)
 
 	port := os.Getenv("SHORTENER_PORT")
