@@ -17,7 +17,7 @@ type fields map[string]any
 type URLCreationEvent struct {
 	ServiceName string
 	URL         string
-	APIVer      int
+	APIVer      int32
 	Success     bool
 	Timestamp   time.Time
 }
@@ -26,7 +26,7 @@ type URLRedirectEvent struct {
 	ServiceName string
 	ShortURL    string
 	LongURL     string
-	APIVer      int
+	APIVer      int32
 	Success     bool
 	Timestamp   time.Time
 }
@@ -34,7 +34,9 @@ type URLRedirectEvent struct {
 type AnalyticsStore interface {
 	WriteURLCreationEvent(*URLCreationEvent)
 	WriteURLRedirectEvent(*URLRedirectEvent)
+	Errors() <-chan error
 	Flush()
+	Close()
 }
 
 type InfluxDBAnalyticsStore struct {
@@ -77,6 +79,15 @@ func (ias *InfluxDBAnalyticsStore) WriteURLCreationEvent(event *URLCreationEvent
 	ias.writeAPI.WritePoint(point)
 }
 
+func (ias *InfluxDBAnalyticsStore) Errors() <-chan error {
+	return ias.writeAPI.Errors()
+}
+
 func (ias *InfluxDBAnalyticsStore) Flush() {
 	ias.writeAPI.Flush()
+}
+
+func (ias *InfluxDBAnalyticsStore) Close() {
+	ias.Flush()
+	ias.client.Close()
 }
