@@ -53,6 +53,7 @@ Create a `.env` file in the root of the project and add the following variables,
 - miscellaneous:
   - `KUERZEN_DB_URL` - The database connection url for the shortener service
   - `ANALYTICS_DB_URL` - The database connection url for the analytics service
+  - `ANALYTICS_SERVICE_URL` - The url for the analytics service
   - `KUERZEN_HOST` - The host for the application
 
 ### Generate Protobuf Code
@@ -103,4 +104,20 @@ curl -X POST http://localhost/create \
 
 ```bash
 curl -X GET http://localhost/[shorten_id]
+```
+
+### Analytics
+
+The analytics data is stored in InfluxDB, after the services are started, you can access the data in the InfluxDB UI at `http://localhost:8086` using the credentials defined in the `.env` file.
+
+You can use the following query to get the data:
+
+```flux
+from(bucket: "kuerzen_analytics")
+  |> range(start: -30m, stop: now())
+  |> pivot(
+      rowKey:["_time"],
+      columnKey: ["_field"],
+      valueColumn: "_value"
+  )
 ```
