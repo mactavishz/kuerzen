@@ -24,6 +24,7 @@ func (s *AnalyticsGRPCServer) CreateShortURLEvent(ctx context.Context, req *pb.C
 		ServiceName: req.ServiceName,
 		URL:         req.Url,
 		APIVer:      req.ApiVersion,
+		Success:     req.Success,
 		Timestamp:   time.UnixMicro(req.Timestamp),
 	}
 	s.store.WriteURLCreationEvent(event)
@@ -36,6 +37,7 @@ func (s *AnalyticsGRPCServer) RedirectShortURLEvent(ctx context.Context, req *pb
 		ShortURL:    req.ShortUrl,
 		LongURL:     req.LongUrl,
 		APIVer:      req.ApiVersion,
+		Success:     req.Success,
 		Timestamp:   time.UnixMicro(req.Timestamp),
 	}
 	s.store.WriteURLRedirectEvent(event)

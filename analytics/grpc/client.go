@@ -17,7 +17,7 @@ type AnalyticsGRPCClient struct {
 	client pb.AnalyticsServiceClient
 }
 
-func NewGRPCClient(addr string) (*AnalyticsGRPCClient, error) {
+func NewAnalyticsGRPCClient(addr string) (*AnalyticsGRPCClient, error) {
 	dialOpts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithConnectParams(grpc.ConnectParams{
