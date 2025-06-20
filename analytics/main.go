@@ -21,7 +21,7 @@ func main() {
 
 	port := os.Getenv("ANALYTICS_PORT")
 
-	if len(port) == 0 {
+	if port == "" {
 		port = DEFAULT_PORT
 	}
 
