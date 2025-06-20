@@ -24,15 +24,6 @@ localhost {
 		}
 	}
 
-	# Handle analytics/events endpoint
-	handle_path /events {
-		rewrite * /api/v1/events
-		reverse_proxy analytics:{env.ANALYTICS_PORT} {
-			header_up X-Real-IP {remote_ip}
-			header_up X-Forwarded-For {remote_ip}
-		}
-	}
-
 	# Handle redirect requests for shortened URLs
 	handle @redirect_url {
 		rewrite * /api/v1/url{uri}
