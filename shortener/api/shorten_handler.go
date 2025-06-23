@@ -18,8 +18,6 @@ import (
 
 const SHORT_URL_LENGTH = 8
 
-type Envelope map[string]any
-
 type ShortenURLRequest struct {
 	URL string `json:"url" validate:"required,http_url,max=1024"`
 }
@@ -56,7 +54,7 @@ func (h *ShortenHandler) HandleShortenURL(c *fiber.Ctx) error {
 		if err != nil {
 			log.Printf("[HandleShortenURL] failed to send event: %v\n", err)
 		}
-		return c.Status(fiber.StatusBadRequest).JSON(Envelope{
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"msg": "invalid request payload",
 		})
 	}
@@ -69,7 +67,7 @@ func (h *ShortenHandler) HandleShortenURL(c *fiber.Ctx) error {
 		if err != nil {
 			log.Printf("[HandleShortenURL] failed to send event: %v\n", err)
 		}
-		return c.Status(fiber.StatusBadRequest).JSON(Envelope{
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"msg": "invalid url",
 		})
 	}
@@ -82,12 +80,12 @@ func (h *ShortenHandler) HandleShortenURL(c *fiber.Ctx) error {
 		}
 		if errors.Is(err, store.ErrDuplicateLongURL) {
 			log.Printf("[HandleShortenURL] long URL already exists: %s\n", req.URL)
-			return c.Status(fiber.StatusConflict).JSON(Envelope{
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{
 				"msg": "long URL already exists",
 			})
 		} else {
 			log.Printf("[HandleShortenURL] failed to create short URL: %v\n", err)
-			return c.Status(fiber.StatusInternalServerError).JSON(Envelope{
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 				"msg": "failed to create short URL",
 			})
 		}

@@ -12,8 +12,6 @@ import (
 	store "github.com/mactavishz/kuerzen/store/url"
 )
 
-type Envelope map[string]any
-
 type RedirectHandler struct {
 	urlStore store.URLStore
 	client   *grpc.AnalyticsGRPCClient
