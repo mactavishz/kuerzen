@@ -15,21 +15,71 @@ localhost {
 		respond "OK" 200
 	}
 
-	# Handle URL shortening endpoint
+	# Handle URL shortening endpoint with load shedding
 	handle_path /create {
+		# Apply rate limiting for creation endpoint
+		rate_limit {
+			zone create_url {
+				key {remote_host}
+				events 20
+				window 1m
+			}
+		}
+
 		rewrite * /api/v1/url/shorten
 		reverse_proxy shortener:{env.SHORTENER_PORT} {
 			header_up X-Real-IP {remote_ip}
 			header_up X-Forwarded-For {remote_ip}
+
+			# Health check configuration
+			health_uri /api/v1/health
+			health_interval 30s
+			health_timeout 5s
+
+			# Connection limits and timeouts
+			transport http {
+				dial_timeout 5s
+				response_header_timeout 10s
+				max_conns_per_host 50
+			}
+
+			# Fail fast on unhealthy backend
+			fail_duration 30s
+			max_fails 3
 		}
 	}
 
-	# Handle redirect requests for shortened URLs
+	# Handle redirect requests for shortened URLs with load shedding
 	handle @redirect_url {
+		# Apply rate limiting for redirect endpoint (higher limits)
+		rate_limit {
+			zone redirect_url {
+				key {remote_host}
+				events 100
+				window 1m
+			}
+		}
+
 		rewrite * /api/v1/url{uri}
 		reverse_proxy redirector:{env.REDIRECTOR_PORT} {
 			header_up X-Real-IP {remote_ip}
 			header_up X-Forwarded-For {remote_ip}
+
+			# Health check configuration
+			health_uri /api/v1/health
+			health_interval 30s
+			health_timeout 5s
+
+			# Connection limits and timeouts
+			transport http {
+				dial_timeout 3s
+				response_header_timeout 5s
+				max_conns_per_host 100
+			}
+
+			# Fail fast on unhealthy backend
+			fail_duration 30s
+			max_fails 5
 		}
 	}
 
