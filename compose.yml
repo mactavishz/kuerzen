@@ -38,7 +38,9 @@ services:
     networks:
       - kuerzen-network
   api-gateway:
-    image: caddy:2-alpine
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
     env_file: [.env]
     ports:
       - 80:80
