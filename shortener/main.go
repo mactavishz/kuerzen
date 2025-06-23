@@ -35,6 +35,9 @@ func main() {
 	}
 	handler := api.NewShortenHandler(urlStore, client)
 	app.Post("/api/v1/url/shorten", handler.HandleShortenURL)
+	app.Get("/api/v1/health", func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"status": "healthy", "service": "shortener"})
+	})
 
 	port := os.Getenv("SHORTENER_PORT")
 	if len(port) == 0 {
