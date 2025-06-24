@@ -69,7 +69,7 @@ func main() {
 	handler := api.NewShortenHandler(urlStore, client)
 
 	app.Post("/api/v1/url/shorten", timeout.NewWithContext(handler.HandleShortenURL, 3*time.Second))
-	app.Get("/api/v1/health", func(c *fiber.Ctx) error {
+	app.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "healthy", "service": "shortener"})
 	})
 

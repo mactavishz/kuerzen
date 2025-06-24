@@ -69,7 +69,7 @@ func main() {
 	handler := api.NewRedirectHandler(urlStore, client)
 
 	app.Get("/api/v1/url/:shortURL", timeout.NewWithContext(handler.HandleRedirect, 3*time.Second))
-	app.Get("/api/v1/health", func(c *fiber.Ctx) error {
+	app.Get("/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "healthy", "service": "redirector"})
 	})
 
