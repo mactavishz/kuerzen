@@ -73,11 +73,11 @@ func NewLoadSheddingMiddleware(ctx context.Context, config Config) (fiber.Handle
 		memUsage := atomic.LoadInt64(&s.mem)
 
 		if cpuUsage > cpuThresholdInt {
-			log.Printf("Request rejected due to high CPU usage: %.2f, %.2f", float64(cpuUsage), float64(cpuThresholdInt))
+			log.Printf("Request rejected due to high CPU usage: %.2f%%, %.2f%%", float64(cpuUsage), float64(cpuThresholdInt))
 			return c.Status(fiber.StatusServiceUnavailable).SendString("Service unavailable")
 		}
 		if memUsage > memThresholdInt {
-			log.Printf("Request rejected due to high memory usage: %.2f, %.2f", float64(memUsage), float64(memThresholdInt))
+			log.Printf("Request rejected due to high memory usage: %.2f%%, %.2f%%", float64(memUsage), float64(memThresholdInt))
 			return c.Status(fiber.StatusServiceUnavailable).SendString("Service unavailable")
 		}
 		return c.Next()
