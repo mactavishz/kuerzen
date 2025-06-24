@@ -3,8 +3,10 @@ package main
 import (
 	"log"
 	"os"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/timeout"
 	grpc "github.com/mactavishz/kuerzen/analytics/grpc"
 	"github.com/mactavishz/kuerzen/shortener/api"
 	"github.com/mactavishz/kuerzen/store/db"
@@ -27,14 +29,19 @@ func main() {
 		log.Fatalf("could not run database migrations: %v", err)
 	}
 
-	app := fiber.New()
+	app := fiber.New(fiber.Config{
+		AppName:   "shortener",
+		BodyLimit: 1024 * 1024 * 1, // 1MB
+	})
+
 	urlStore := store.NewPostgresURLStore(pgDB)
 	client, err := grpc.NewAnalyticsGRPCClient(os.Getenv("ANALYTICS_SERVICE_URL"))
 	if err != nil {
 		log.Fatalf("could not set up grpc client: %v", err)
 	}
 	handler := api.NewShortenHandler(urlStore, client)
-	app.Post("/api/v1/url/shorten", handler.HandleShortenURL)
+
+	app.Post("/api/v1/url/shorten", timeout.NewWithContext(handler.HandleShortenURL, 3*time.Second))
 	app.Get("/api/v1/health", func(c *fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "healthy", "service": "shortener"})
 	})
