@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 	"os/signal"
@@ -37,7 +38,10 @@ func main() {
 		BodyLimit: 1024 * 1024 * 1, // 1MB
 	})
 
-	loadshedMiddleware, err := loadshed.NewLoadSheddingMiddleware(loadshed.Config{
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	loadshedMiddleware, err := loadshed.NewLoadSheddingMiddleware(ctx, loadshed.Config{
 		CPUThreshold: 0.9,
 		MemThreshold: 0.9,
 		Interval:     500 * time.Millisecond,

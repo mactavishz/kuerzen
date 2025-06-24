@@ -1,6 +1,7 @@
 package loadshed
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"sync/atomic"
@@ -24,32 +25,36 @@ type Config struct {
 }
 
 // periodically update CPU and memory usage in the background
-func startStatUpdater(s *stat, interval time.Duration) {
+func startStatUpdater(ctx context.Context, s *stat, interval time.Duration) {
 	go func() {
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
-		for range ticker.C {
-			cpuPercents, err := cpu.Percent(0, false)
-			var cpuVal int64
-			if err == nil && len(cpuPercents) > 0 {
-				cpuVal = int64(cpuPercents[0])
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				cpuPercents, err := cpu.Percent(0, false)
+				var cpuVal int64
+				if err == nil && len(cpuPercents) > 0 {
+					cpuVal = int64(cpuPercents[0])
+				}
+				memStat, err := mem.VirtualMemory()
+				var memVal int64
+				if err == nil {
+					memVal = int64(memStat.UsedPercent)
+				}
+				atomic.StoreInt64(&s.cpu, cpuVal)
+				atomic.StoreInt64(&s.mem, memVal)
 			}
-			memStat, err := mem.VirtualMemory()
-			var memVal int64
-			if err == nil {
-				memVal = int64(memStat.UsedPercent)
-			}
-			atomic.StoreInt64(&s.cpu, cpuVal)
-			atomic.StoreInt64(&s.mem, memVal)
-			// log.Printf("CPU usage: %.2f, Memory usage: %.2f", float64(cpuVal)/100, float64(memVal)/100)
 		}
 	}()
 }
 
 // Returns a Fiber middleware that sheds load if CPU or memory usage exceeds the given thresholds.
-func NewLoadSheddingMiddleware(config Config) (fiber.Handler, error) {
+func NewLoadSheddingMiddleware(ctx context.Context, config Config) (fiber.Handler, error) {
 	s := &stat{}
-	startStatUpdater(s, config.Interval)
+	startStatUpdater(ctx, s, config.Interval)
 
 	if config.CPUThreshold < 0 || config.CPUThreshold > 100 {
 		config.CPUThreshold = 0
