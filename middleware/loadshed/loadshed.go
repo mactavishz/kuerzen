@@ -13,7 +13,7 @@ import (
 
 // stat holds the latest CPU and memory usage values.
 type stat struct {
-	cpu int64 // store as hundredths of a percent, e.g., 8234 = 82.34%
+	cpu int64 // store as hundredths of a percent, e.g., 82 = 82%
 	mem int64
 }
 
