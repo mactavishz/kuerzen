@@ -46,14 +46,18 @@ services:
       - 80:80
       - 443:443
     volumes:
-      - ./api-gateway:/etc/caddy
-      - ./local/caddy/data:/data
+      - ./local/openresty/logs:/var/log/nginx
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost/health || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/health || exit 1"]
       interval: 5s
       timeout: 5s
     networks:
       - kuerzen-network
+    depends_on:
+      shortener:
+        condition: service_healthy
+      redirector:
+        condition: service_healthy
   shortener:
     build:
       context: ./
@@ -71,10 +75,12 @@ services:
         condition: service_healthy
       analytics-db:
         condition: service_healthy
-      api-gateway:
-        condition: service_healthy
     networks:
       - kuerzen-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:${SHORTENER_PORT}/health || exit 1"]
+      interval: 5s
+      timeout: 5s
   redirector:
     build:
       context: ./
@@ -92,10 +98,12 @@ services:
         condition: service_healthy
       analytics-db:
         condition: service_healthy
-      api-gateway:
-        condition: service_healthy
     networks:
       - kuerzen-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:${REDIRECTOR_PORT}/health || exit 1"]
+      interval: 5s
+      timeout: 5s
   analytics:
     build:
       context: ./

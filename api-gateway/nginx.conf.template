@@ -1,0 +1,198 @@
+worker_processes auto;
+error_log /var/log/nginx/error.log warn;
+error_log /dev/stderr warn;
+pid /var/run/nginx.pid;
+
+events {
+    worker_connections 1024;
+    use epoll;
+    multi_accept on;
+}
+
+http {
+    include /usr/local/openresty/nginx/conf/mime.types;
+    default_type application/octet-stream;
+
+    # Logging format
+    log_format main '[$time_iso8601] $remote_addr "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+
+    # Log to both file and stderr
+    access_log /var/log/nginx/access.log main;
+    access_log /dev/stdout main;
+
+    # Performance optimizations
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 65;
+    types_hash_max_size 2048;
+
+    # Rate limiting zones
+    lua_shared_dict rate_limit_create 10m;
+    lua_shared_dict rate_limit_redirect 10m;
+    lua_shared_dict healthcheck 1m;
+
+    # Upstream definitions
+    upstream shortener_backend {
+        server shortener:${SHORTENER_PORT} max_fails=3 fail_timeout=10s;
+        keepalive 16;
+    }
+
+    upstream redirector_backend {
+        server redirector:${REDIRECTOR_PORT} max_fails=5 fail_timeout=15s;
+        keepalive 32;
+    }
+
+    # Health check intervals
+    # Ref: https://github.com/openresty/lua-resty-upstream-healthcheck
+    init_worker_by_lua_block {
+        local hc = require "resty.upstream.healthcheck"
+
+        -- Health check for shortener service
+        local ok, err = hc.spawn_checker{
+            shm = "healthcheck",
+            upstream = "shortener_backend",
+            type = "http",
+            http_req = "GET /health HTTP/1.0\r\nHost: shortener\r\n\r\n",
+            interval = 30000,  -- 30 seconds
+            timeout = 5000,    -- 5 seconds
+            fall = 3,
+            rise = 2,
+            valid_statuses = {200, 204},
+            concurrency = 1,
+        }
+        if not ok then
+            ngx.log(ngx.ERR, "failed to spawn health checker for shortener: ", err)
+            return
+        end
+
+        -- Health check for redirector service
+        local ok, err = hc.spawn_checker{
+            shm = "healthcheck",
+            upstream = "redirector_backend",
+            type = "http",
+            http_req = "GET /health HTTP/1.0\r\nHost: redirector\r\n\r\n",
+            interval = 30000,  -- 30 seconds
+            timeout = 5000,    -- 5 seconds
+            fall = 5,
+            rise = 2,
+            valid_statuses = {200, 204},
+            concurrency = 1,
+        }
+        if not ok then
+            ngx.log(ngx.ERR, "failed to spawn health checker for redirector: ", err)
+            return
+        end
+    }
+
+    server {
+        listen 80;
+        server_name localhost;
+
+        # Health check endpoint
+        location = /health {
+            access_log off;
+            return 200 "OK\n";
+            add_header Content-Type text/plain;
+        }
+
+        # URL creation endpoint with rate limiting
+        # Ref: https://github.com/openresty/lua-resty-limit-traffic
+        location = /create {
+            access_by_lua_block {
+                local limit_req = require "resty.limit.req"
+                -- limit the requests under 5 req/sec with a burst of 15 req/sec,
+                -- that is, we delay requests under 15 req/sec and above 5
+                -- req/sec, and reject any requests exceeding 15 req/sec.
+                local lim, err = limit_req.new("rate_limit_create", 5, 10)
+                if not lim then
+                    ngx.log(ngx.ERR, "failed to instantiate a resty.limit.req object: ", err)
+                    return ngx.exit(500)
+                end
+
+                local key = ngx.var.remote_addr
+                local delay, err = lim:incoming(key, true)
+                if not delay then
+                    if err == "rejected" then
+                        return ngx.exit(429)
+                    end
+                    ngx.log(ngx.ERR, "failed to limit req: ", err)
+                    return ngx.exit(500)
+                end
+
+                if delay >= 0.001 then
+                    local excess = err
+                    ngx.sleep(delay)
+                end
+            }
+
+            rewrite ^/create$ /api/v1/url/shorten break;
+
+            proxy_pass http://shortener_backend;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            proxy_connect_timeout 5s;
+            proxy_send_timeout 10s;
+            proxy_read_timeout 10s;
+
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+        }
+
+        # Redirect endpoint for shortened URLs with rate limiting
+        location ~ ^/([a-zA-Z0-9]+)$ {
+            access_by_lua_block {
+                local limit_req = require "resty.limit.req"
+                -- limit the requests under 200 req/sec with a burst of 100 req/sec,
+                -- that is, we delay requests under 300 req/sec and above 200
+                -- req/sec, and reject any requests exceeding 300 req/sec.
+                local lim, err = limit_req.new("rate_limit_redirect", 200, 100)
+                if not lim then
+                    ngx.log(ngx.ERR, "failed to instantiate a resty.limit.req object: ", err)
+                    return ngx.exit(500)
+                end
+
+                local key = ngx.var.remote_addr
+                local delay, err = lim:incoming(key, true)
+                if not delay then
+                    if err == "rejected" then
+                        return ngx.exit(429)
+                    end
+                    ngx.log(ngx.ERR, "failed to limit req: ", err)
+                    return ngx.exit(500)
+                end
+
+                if delay >= 0.001 then
+                    local excess = err
+                    ngx.sleep(delay)
+                end
+            }
+
+            rewrite ^/(.*)$ /api/v1/url/$1 break;
+
+            proxy_pass http://redirector_backend;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            proxy_connect_timeout 3s;
+            proxy_send_timeout 5s;
+            proxy_read_timeout 5s;
+
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+        }
+
+        # Catch-all for unmatched routes
+        location / {
+            return 404 "Not Found\n";
+            add_header Content-Type text/plain;
+        }
+    }
+}
