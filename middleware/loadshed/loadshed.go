@@ -56,13 +56,13 @@ func NewLoadSheddingMiddleware(ctx context.Context, config Config) (fiber.Handle
 	s := &stat{}
 	startStatUpdater(ctx, s, config.Interval)
 
-	if config.CPUThreshold < 0 || config.CPUThreshold > 100 {
+	if config.CPUThreshold < 0 || config.CPUThreshold > 1 {
 		config.CPUThreshold = 0
-		return nil, fmt.Errorf("CPU threshold must be between 0 and 100")
+		return nil, fmt.Errorf("CPU threshold must be between 0 and 1")
 	}
-	if config.MemThreshold < 0 || config.MemThreshold > 100 {
+	if config.MemThreshold < 0 || config.MemThreshold > 1 {
 		config.MemThreshold = 0
-		return nil, fmt.Errorf("memory threshold must be between 0 and 100")
+		return nil, fmt.Errorf("memory threshold must be between 0 and 1")
 	}
 
 	cpuThresholdInt := int64(config.CPUThreshold * 100)
