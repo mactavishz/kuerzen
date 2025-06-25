@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/timeout"
 	"github.com/mactavishz/kuerzen/analytics/grpc"
@@ -38,6 +39,10 @@ func main() {
 		GETOnly:   true,
 	})
 
+	prometheus := fiberprometheus.New("shortener")
+	prometheus.RegisterAt(app, "/metrics")
+	prometheus.SetSkipPaths([]string{"/health"}) // Optional: Remove some paths from metrics
+	app.Use(prometheus.Middleware)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -70,7 +75,7 @@ func main() {
 
 	app.Get("/api/v1/url/:shortURL", timeout.NewWithContext(handler.HandleRedirect, 3*time.Second))
 	app.Get("/health", func(c *fiber.Ctx) error {
-		return c.JSON(fiber.Map{"status": "healthy", "service": "redirector"})
+		return c.JSON(fiber.Map{"status": "healthy"})
 	})
 
 	port := os.Getenv("REDIRECTOR_PORT")
