@@ -21,6 +21,7 @@ Since there are some dependencies between the services, it's best to create a Go
 ```bash
 go work init
 go work use ./store
+go work use ./middleware
 go work use ./shortener
 go work use ./redirector
 go work use ./analytics
