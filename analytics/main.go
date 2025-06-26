@@ -58,7 +58,7 @@ func main() {
 	client := influxdb2.NewClient(os.Getenv("ANALYTICS_DB_URL"), os.Getenv("DOCKER_INFLUXDB_INIT_ADMIN_TOKEN"))
 	analyticsStore := store.NewInfluxDBAnalyticsStore(client, os.Getenv("DOCKER_INFLUXDB_INIT_ORG"), os.Getenv("DOCKER_INFLUXDB_INIT_BUCKET"))
 	defer analyticsStore.Close()
-	gprcServer := server.NewAnalyticsGRPCServer(analyticsStore, logger)
+	analyticsGRPCServer := server.NewAnalyticsGRPCServer(analyticsStore, logger)
 	// Define keepalive server parameters
 	kasp := keepalive.ServerParameters{
 		Time:    30 * time.Second, // Ping the client if it is idle for 30 seconds to ensure the connection is still active
@@ -78,7 +78,7 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer(serverOpts...)
-	pb.RegisterAnalyticsServiceServer(grpcServer, gprcServer)
+	pb.RegisterAnalyticsServiceServer(grpcServer, analyticsGRPCServer)
 	srvMetrics.InitializeMetrics(grpcServer)
 
 	g := &run.Group{}
