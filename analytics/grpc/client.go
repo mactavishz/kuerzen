@@ -6,6 +6,7 @@ import (
 
 	pb "github.com/mactavishz/kuerzen/analytics/pb"
 	store "github.com/mactavishz/kuerzen/store/analytics"
+	"go.uber.org/zap"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -15,9 +16,10 @@ import (
 type AnalyticsGRPCClient struct {
 	conn   *grpc.ClientConn
 	client pb.AnalyticsServiceClient
+	logger *zap.SugaredLogger
 }
 
-func NewAnalyticsGRPCClient(addr string) (*AnalyticsGRPCClient, error) {
+func NewAnalyticsGRPCClient(addr string, logger *zap.SugaredLogger) (*AnalyticsGRPCClient, error) {
 	dialOpts := []grpc.DialOption{
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithConnectParams(grpc.ConnectParams{
@@ -38,6 +40,7 @@ func NewAnalyticsGRPCClient(addr string) (*AnalyticsGRPCClient, error) {
 	return &AnalyticsGRPCClient{
 		conn:   conn,
 		client: pb.NewAnalyticsServiceClient(conn),
+		logger: logger,
 	}, nil
 }
 
@@ -51,6 +54,7 @@ func (ac *AnalyticsGRPCClient) SendURLCreationEvent(ctx context.Context, event *
 	}
 	_, err := ac.client.CreateShortURLEvent(ctx, req)
 	if err != nil {
+		ac.logger.Errorf("failed to send URL creation event: %v", err)
 		return err
 	}
 	return nil
@@ -67,6 +71,7 @@ func (ac *AnalyticsGRPCClient) SendURLRedirectEvent(ctx context.Context, event *
 	}
 	_, err := ac.client.RedirectShortURLEvent(ctx, req)
 	if err != nil {
+		ac.logger.Errorf("failed to send URL redirect event: %v", err)
 		return err
 	}
 	return nil

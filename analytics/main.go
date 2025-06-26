@@ -17,6 +17,7 @@ import (
 	"github.com/oklog/run"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 )
@@ -27,7 +28,12 @@ const (
 )
 
 func main() {
-	log.SetFlags(log.LstdFlags | log.Lshortfile)
+	// We use sugar logger for better readability in development
+	logger := zap.Must(zap.NewProduction()).Sugar()
+	if os.Getenv("APP_ENV") == "development" || os.Getenv("APP_ENV") == "" {
+		logger = zap.Must(zap.NewDevelopment()).Sugar()
+	}
+	defer logger.Sync()
 
 	grpcPort := os.Getenv("ANALYTICS_GRPC_PORT")
 	metricsPort := os.Getenv("ANALYTICS_PORT")
@@ -53,7 +59,7 @@ func main() {
 	client := influxdb2.NewClient(os.Getenv("ANALYTICS_DB_URL"), os.Getenv("DOCKER_INFLUXDB_INIT_ADMIN_TOKEN"))
 	analyticsStore := store.NewInfluxDBAnalyticsStore(client, os.Getenv("DOCKER_INFLUXDB_INIT_ORG"), os.Getenv("DOCKER_INFLUXDB_INIT_BUCKET"))
 	defer analyticsStore.Close()
-	gprcServer := server.NewAnalyticsGRPCServer(analyticsStore)
+	gprcServer := server.NewAnalyticsGRPCServer(analyticsStore, logger)
 	// Define keepalive server parameters
 	kasp := keepalive.ServerParameters{
 		Time:    30 * time.Second, // Ping the client if it is idle for 30 seconds to ensure the connection is still active
@@ -80,13 +86,12 @@ func main() {
 	g.Add(func() error {
 		listener, err := net.Listen("tcp", ":"+grpcPort)
 		if err != nil {
-			log.Printf("failed to listen: %v", err)
-			os.Exit(1)
+			logger.Fatalf("failed to listen: %v", err)
 		}
-		log.Printf("Analytics service GRPC listening on port :%s", grpcPort)
+		logger.Infof("Analytics service GRPC listening on port :%s", grpcPort)
 		return grpcServer.Serve(listener)
 	}, func(err error) {
-		log.Printf("Failed to serve gRPC: %v", err)
+		logger.Errorf("Failed to serve gRPC: %v", err)
 		grpcServer.GracefulStop()
 		grpcServer.Stop()
 	})
@@ -104,14 +109,14 @@ func main() {
 			w.Header().Set("Content-Type", "application/json")
 			_, err := w.Write([]byte("{\"status\": \"healthy\"}"))
 			if err != nil {
-				log.Printf("failed to write health response: %v", err)
+				logger.Errorf("failed to write health response: %v", err)
 			}
 		})
 		log.Printf("Metrics server listening on port :%s", metricsPort)
 		return httpServer.ListenAndServe()
 	}, func(err error) {
 		if err := httpServer.Close(); err != nil {
-			log.Printf("failed to serve metrics: %v", err)
+			logger.Errorf("failed to serve metrics: %v", err)
 		}
 	})
 	g.Add(run.SignalHandler(context.Background(), syscall.SIGINT, syscall.SIGTERM))
