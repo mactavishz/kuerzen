@@ -6,16 +6,19 @@ import (
 
 	pb "github.com/mactavishz/kuerzen/analytics/pb"
 	store "github.com/mactavishz/kuerzen/store/analytics"
+	"go.uber.org/zap"
 )
 
 type AnalyticsGRPCServer struct {
 	pb.UnimplementedAnalyticsServiceServer
-	store store.AnalyticsStore
+	store  store.AnalyticsStore
+	logger *zap.SugaredLogger
 }
 
-func NewAnalyticsGRPCServer(store store.AnalyticsStore) *AnalyticsGRPCServer {
+func NewAnalyticsGRPCServer(store store.AnalyticsStore, logger *zap.SugaredLogger) *AnalyticsGRPCServer {
 	return &AnalyticsGRPCServer{
-		store: store,
+		store:  store,
+		logger: logger,
 	}
 }
 
@@ -28,6 +31,7 @@ func (s *AnalyticsGRPCServer) CreateShortURLEvent(ctx context.Context, req *pb.C
 		Timestamp:   time.UnixMicro(req.Timestamp),
 	}
 	s.store.WriteURLCreationEvent(event)
+	s.logger.Infow("URL creation event recorded", "service", req.ServiceName)
 	return &pb.EventResponse{Success: true}, nil
 }
 
@@ -41,5 +45,6 @@ func (s *AnalyticsGRPCServer) RedirectShortURLEvent(ctx context.Context, req *pb
 		Timestamp:   time.UnixMicro(req.Timestamp),
 	}
 	s.store.WriteURLRedirectEvent(event)
+	s.logger.Infow("URL redirect event recorded", "service", req.ServiceName)
 	return &pb.EventResponse{Success: true}, nil
 }

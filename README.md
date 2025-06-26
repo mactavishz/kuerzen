@@ -1,6 +1,16 @@
 # Kuerzen
 
-A simple distributed URL shortener that scales.
+A simple distributed URL shortener that scales with comprehensive monitoring and observability.
+
+## Features
+
+- **Distributed Architecture**: Microservices design with API Gateway, URL shortener, redirector, and analytics services
+- **High Performance**: Built with Go and Fiber for fast HTTP handling
+- **Observability**: Complete monitoring stack with Grafana, Prometheus, Loki, and Alloy
+- **Analytics**: Real-time analytics with InfluxDB for URL creation and redirect events
+- **Load Shedding**: Automatic load shedding based on CPU and memory thresholds
+- **Health Checks**: Comprehensive health monitoring for all services
+- **Local Development Support**: Full containerization with hot-reload for development
 
 ## Development
 
@@ -31,31 +41,23 @@ Because go workspace is only for local development, the `go.work` file is not in
 
 ### Environment Variables
 
-Create a `.env` file in the root of the project and add the following variables, you can use the `.env.example` file as a reference.
+- Create a `.env` file in the root of the project, you can use the `.env.example` file as a reference.
+- Create a `.app.env` file in the root of the project, you can use the `.app.env.example` file as a reference.
+- Create a `.monitoring.env` file in the `monitoring` directory, you can use the `.monitoring.env.example` file as a reference.
 
-- ports:
-  - `SHORTENER_PORT` - The port for the shortener service.
-  - `REDIRECTOR_PORT` - The port for the redirect service.
-  - `ANALYTICS_PORT` - The port for the analytics service.
-  - `ANALYTICS_DB_PORT` - The port for the analytics database.
-  - `CACHE_PORT` - The port for the cache.
-  - `DB_PORT` - The port for the database.
-- postgres:
-  - `POSTGRES_USER` - The username for the postgres database.
-  - `POSTGRES_PASSWORD` - The password for the postgres database.
-  - `POSTGRES_DB` - The database name for the postgres database.
-- influxdb:
-  - `DOCKER_INFLUXDB_INIT_MODE` - The mode for the influxdb database.
-  - `DOCKER_INFLUXDB_INIT_USERNAME` - The username for the influxdb database.
-  - `DOCKER_INFLUXDB_INIT_PASSWORD` - The password for the influxdb database.
-  - `DOCKER_INFLUXDB_INIT_ORG` - The organization for the influxdb database.
-  - `DOCKER_INFLUXDB_INIT_BUCKET` - The bucket for the influxdb database.
-  - `DOCKER_INFLUXDB_INIT_ADMIN_TOKEN` - The admin token for the influxdb database.
-- miscellaneous:
-  - `KUERZEN_DB_URL` - The database connection url for the shortener service
-  - `ANALYTICS_DB_URL` - The database connection url for the analytics service
-  - `ANALYTICS_SERVICE_URL` - The url for the analytics service
-  - `KUERZEN_HOST` - The host for the application
+#### What are the differences between `.env`, `.app.env`, and `.monitoring.env`?
+
+- `.env`: Contains environment variables for substitution in the Docker Compose files.
+- `.app.env`: Contains environment variables for the application services (shortener, redirector, analytics, databases).
+- `.monitoring.env`: Contains environment variables for the monitoring stack (Grafana, Prometheus, Loki, Alloy).
+
+#### Caveats
+
+Make sure you set the following environment variables the same in both `.env` and `.app.env` files:
+
+- `SHORTENER_PORT`
+- `REDIRECTOR_PORT`
+- `ANALYTICS_PORT`
 
 ### Generate Protobuf Code
 
@@ -65,7 +67,7 @@ Currently, only the analytics service has a protobuf file, so if you need to gen
 make gen
 ```
 
-### Start the services
+### Start the application services
 
 Run the following command to start all the services:
 
@@ -77,12 +79,21 @@ It might take a while to start the services, as the services are dependent on ea
 
 All the go services are using hot reload using [Air](https://github.com/air-verse/air), so you can change the code and the changes will be reflected immediately.
 
-### End the services
+### Start the monitoring services
+
+Run the following command to start the monitoring stack:
+
+```bash
+docker compose -f compose.monitoring.yml up -d
+```
+
+### Stop all the services
 
 Run the following command to stop and remove all running services:
 
 ```bash
 docker compose down
+docker compose -f compose.monitoring.yml down
 ```
 
 ### API Endpoints
@@ -122,3 +133,7 @@ from(bucket: "kuerzen_analytics")
       valueColumn: "_value"
   )
 ```
+
+### Monitoring
+
+Please refer to the [monitoring/README.md](monitoring/README.md) for details.
