@@ -1,0 +1,11 @@
+# Prometheus configuration for Kuerzen URL Shortener
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    app: 'kuerzen'
+    environment: '${APP_ENV}'
+
+# No direct scraping - all metrics collected via Alloy
+scrape_configs: []
+

@@ -1,0 +1,155 @@
+// Discovery for Docker containers
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// Logs discovery - collect from all containers
+discovery.relabel "logs" {
+  targets = discovery.docker.containers.targets
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_id"]
+    target_label  = "container_id"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_image"]
+    target_label  = "image"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "project"
+  }
+}
+
+// Docker logs collection
+loki.source.docker "containers" {
+  host       = "unix:///var/run/docker.sock"
+  targets    = discovery.relabel.logs.output
+  forward_to = [loki.write.default.receiver]
+}
+
+// Loki client
+loki.write "default" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+// Metrics discovery - filter for containers with metrics ports
+discovery.relabel "metrics" {
+  targets = discovery.docker.containers.targets
+
+  // The labels are concatenation of the container metadata
+  // Ref: https://grafana.com/docs/alloy/latest/reference/components/discovery/discovery.docker/
+  // Only include containers that are our Go services (shortener, redirector, analytics)
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    regex         = "(shortener|redirector|analytics)"
+    action        = "keep"
+  }
+
+  // Set the correct port based on service
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    regex         = "shortener"
+    target_label  = "__address__"
+    replacement   = "shortener:3000"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    regex         = "redirector"
+    target_label  = "__address__"
+    replacement   = "redirector:3001"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    regex         = "analytics"
+    target_label  = "__address__"
+    replacement   = "analytics:3002"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "project"
+  }
+
+  rule {
+    target_label = "__metrics_path__"
+    replacement  = "/metrics"
+  }
+}
+
+// Prometheus scraping for Go services
+prometheus.scrape "go_services" {
+  targets    = discovery.relabel.metrics.output
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
+// Self-monitoring - Alloy metrics
+prometheus.scrape "alloy" {
+  targets = [{
+    __address__ = "localhost:12345",
+    service     = "alloy",
+  }]
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
+// Prometheus self-monitoring
+prometheus.scrape "prometheus" {
+  targets = [{
+    __address__ = "prometheus:9090",
+    service     = "prometheus",
+  }]
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
+// Grafana metrics
+prometheus.scrape "grafana" {
+  targets = [{
+    __address__ = "grafana:3000",
+    service     = "grafana",
+  }]
+  scrape_interval = "30s"
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
+// InfluxDB metrics
+prometheus.scrape "influxdb" {
+  targets = [{
+    __address__ = "analytics-db:8086",
+    service     = "influxdb",
+  }]
+  scrape_interval = "30s"
+  forward_to = [prometheus.remote_write.default.receiver]
+}
+
+// Prometheus remote write
+prometheus.remote_write "default" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
+  }
+}
