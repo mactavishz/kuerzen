@@ -1,58 +1,58 @@
+name: kuerzen
 services:
   db:
     image: postgres:17-alpine
-    env_file: [.env]
+    env_file: [.app.env]
     ports:
-      - ${DB_PORT}:${DB_PORT}
+      - ${DB_HOST_PORT}:5432
     volumes: [./local/postgres/data:/var/lib/postgresql/data]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 5s
-      timeout: 5s
+      test: [
+        "CMD-SHELL",
+        "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""
+      ]
+      start_period: 30s
     networks:
-      - kuerzen-network
+      - application
   analytics-db:
     image: influxdb:2-alpine
-    env_file: [.env]
+    env_file: [.app.env]
     ports:
-      - ${ANALYTICS_DB_PORT}:${ANALYTICS_DB_PORT}
+      - ${ANALYTICS_DB_HOST_PORT}:8086
     volumes:
       - ./local/influxdb/data:/var/lib/influxdb2
       - ./local/influxdb/config:/etc/influxdb2
     healthcheck:
       test: ["CMD-SHELL", "influx ping"]
-      interval: 5s
-      timeout: 5s
+      start_period: 30s
     networks:
-      - kuerzen-network
+      - application
   cache:
     image: valkey/valkey:8.1.1-alpine
-    env_file: [.env]
+    env_file: [.app.env]
     ports:
-      - ${CACHE_PORT}:${CACHE_PORT}
+      - ${CACHE_HOST_PORT}:6379
     volumes: [./local/valkey/data:/data]
     healthcheck:
       test: ["CMD-SHELL", "valkey-cli PING"]
-      interval: 5s
-      timeout: 5s
+      start_period: 30s
     networks:
-      - kuerzen-network
+      - application
   api-gateway:
     build:
       context: ./api-gateway
       dockerfile: Dockerfile
-    env_file: [.env]
+    env_file: [.app.env]
     ports:
       - 80:80
       - 443:443
     volumes:
       - ./local/openresty/logs:/var/log/nginx
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/health || exit 1"]
-      interval: 5s
-      timeout: 5s
+      test: ["CMD-SHELL", "wget -q --spider http://api-gateway/health || exit 1"]
+      start_period: 30s
     networks:
-      - kuerzen-network
+      - application
     depends_on:
       shortener:
         condition: service_healthy
@@ -63,9 +63,9 @@ services:
       context: ./
       dockerfile: ./shortener/Dockerfile.dev
     working_dir: /app/shortener
-    env_file: [.env]
+    env_file: [.app.env]
     ports:
-      - ${SHORTENER_PORT}:${SHORTENER_PORT}
+      - ${SHORTENER_HOST_PORT}:${SHORTENER_PORT}
     volumes:
       - .:/app
     depends_on:
@@ -73,22 +73,21 @@ services:
         condition: service_healthy
       cache:
         condition: service_healthy
-      analytics-db:
+      analytics:
         condition: service_healthy
     networks:
-      - kuerzen-network
+      - application
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:${SHORTENER_PORT}/health || exit 1"]
-      interval: 5s
-      timeout: 5s
+      test: ["CMD-SHELL", "wget -q --spider http://shortener:${SHORTENER_PORT}/health || exit 1"]
+      start_period: 30s
   redirector:
     build:
       context: ./
       dockerfile: ./redirector/Dockerfile.dev
     working_dir: /app/redirector
-    env_file: [.env]
+    env_file: [.app.env]
     ports:
-      - ${REDIRECTOR_PORT}:${REDIRECTOR_PORT}
+      - ${REDIRECTOR_HOST_PORT}:${REDIRECTOR_PORT}
     volumes:
       - .:/app
     depends_on:
@@ -96,35 +95,33 @@ services:
         condition: service_healthy
       cache:
         condition: service_healthy
-      analytics-db:
+      analytics:
         condition: service_healthy
     networks:
-      - kuerzen-network
+      - application
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:${REDIRECTOR_PORT}/health || exit 1"]
-      interval: 5s
-      timeout: 5s
+      test: ["CMD-SHELL", "wget -q --spider http://redirector:${REDIRECTOR_PORT}/health || exit 1"]
+      start_period: 30s
   analytics:
     build:
       context: ./
       dockerfile: ./analytics/Dockerfile.dev
     working_dir: /app/analytics
-    env_file: [.env]
+    env_file: [.app.env]
     ports:
-      - ${ANALYTICS_PORT}:${ANALYTICS_PORT}
+      - ${ANALYTICS_HOST_PORT}:${ANALYTICS_PORT}
     volumes:
       - .:/app
     depends_on:
-      db:
-        condition: service_healthy
-      cache:
-        condition: service_healthy
       analytics-db:
         condition: service_healthy
-      api-gateway:
-        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://analytics:${ANALYTICS_PORT}/health || exit 1"]
+      start_period: 30s
     networks:
-      - kuerzen-network
+      - application
+
 networks:
-  kuerzen-network:
+  application:
+    name: ${APP_NETWORK}
     driver: bridge
