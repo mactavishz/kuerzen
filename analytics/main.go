@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -112,7 +111,7 @@ func main() {
 				logger.Errorf("failed to write health response: %v", err)
 			}
 		})
-		log.Printf("Metrics server listening on port :%s", metricsPort)
+		logger.Infof("Metrics server listening on port :%s", metricsPort)
 		return httpServer.ListenAndServe()
 	}, func(err error) {
 		if err := httpServer.Close(); err != nil {
@@ -121,7 +120,7 @@ func main() {
 	})
 	g.Add(run.SignalHandler(context.Background(), syscall.SIGINT, syscall.SIGTERM))
 	if err := g.Run(); err != nil {
-		log.Printf("program interrupted: %v", err)
+		logger.Errorf("program interrupted: %v", err)
 		os.Exit(1)
 	}
 }
