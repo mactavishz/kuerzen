@@ -46,7 +46,7 @@ func main() {
 		GETOnly:   true,
 	})
 
-	prometheus := fiberprometheus.New("shortener")
+	prometheus := fiberprometheus.New("redirector")
 	prometheus.RegisterAt(app, "/metrics")
 	prometheus.SetSkipPaths([]string{"/health"}) // Optional: Remove some paths from metrics
 	app.Use(prometheus.Middleware)
