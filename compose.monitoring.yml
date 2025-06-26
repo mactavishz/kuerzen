@@ -1,0 +1,73 @@
+name: kuerzen
+services:
+  # Monitoring Stack
+  grafana:
+    image: grafana/grafana:12.0.2
+    env_file: [.monitoring.env]
+    ports:
+      - "${GRAFANA_HOST_PORT}:3000"
+    volumes:
+      - ./local/grafana:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - monitoring
+    depends_on:
+      - prometheus
+      - loki
+
+  prometheus:
+    image: prom/prometheus:v3.4.1
+    env_file: [.monitoring.env]
+    ports:
+      - "${PROMETHEUS_HOST_PORT}:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./local/prometheus:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=24h'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+      - '--web.enable-remote-write-receiver'
+    networks:
+      - monitoring
+
+  loki:
+    image: grafana/loki:3.5
+    env_file: [.monitoring.env]
+    ports:
+      - "${LOKI_HOST_PORT}:3100"
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml
+      - ./local/loki:/tmp/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - monitoring
+
+  alloy:
+    image: grafana/alloy:v1.9.0
+    env_file: [.monitoring.env]
+    ports:
+      - "${ALLOY_HOST_PORT}:12345"  # Alloy UI
+    volumes:
+      - ./monitoring/alloy/config.alloy:/etc/alloy/config.alloy:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./local/alloy:/var/lib/alloy/data
+    command: run --server.http.listen-addr=0.0.0.0:12345 --storage.path=/var/lib/alloy/data /etc/alloy/config.alloy
+    environment:
+      - HOSTNAME=alloy
+    user: "0:0"  # Run as root to access Docker socket
+    networks:
+      - monitoring
+      - application  # Connect to app network to discover services
+    depends_on:
+      - prometheus
+      - loki
+
+networks:
+  monitoring:
+    name: ${MONITORING_NETWORK}
+    driver: bridge
+  application:
+    name: ${APP_NETWORK}
+    external: true  # Reference the existing application network
