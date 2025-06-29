@@ -74,7 +74,7 @@ func (h *ShortenHandler) HandleShortenURL(c *fiber.Ctx) error {
 		})
 	}
 	shortURL := lib.ToShortURL(req.URL, SHORT_URL_LENGTH)
-	err = h.urlStore.CreateShortURL(shortURL, req.URL)
+	err = h.urlStore.CreateShortURL(shortURL, req.URL, c.Context())
 	if err != nil {
 		evtErr := h.client.SendURLCreationEvent(context.TODO(), evt)
 		if evtErr != nil {
