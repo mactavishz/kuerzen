@@ -29,7 +29,7 @@ func NewRedirectHandler(urlStore store.URLStore, client *grpc.AnalyticsGRPCClien
 func (h *RedirectHandler) HandleRedirect(c *fiber.Ctx) error {
 	shortURL := c.Params("shortURL")
 	// TODO: handle caching of redirects
-	longURL, err := h.urlStore.GetLongURL(shortURL)
+	longURL, err := h.urlStore.GetLongURL(shortURL, c.Context())
 	evt := &astore.URLRedirectEvent{
 		ServiceName: "redirector",
 		APIVer:      1,
