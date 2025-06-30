@@ -4,9 +4,12 @@ import (
 	"context"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	pb "github.com/mactavishz/kuerzen/analytics/pb"
 	store "github.com/mactavishz/kuerzen/store/analytics"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -52,11 +55,44 @@ func (ac *AnalyticsGRPCClient) SendURLCreationEvent(ctx context.Context, event *
 		Success:     event.Success,
 		Timestamp:   event.Timestamp.UnixMicro(),
 	}
-	_, err := ac.client.CreateShortURLEvent(ctx, req)
+
+	operation := func() error {
+		grpcCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		_, err := ac.client.CreateShortURLEvent(grpcCtx, req)
+		if err != nil {
+			st, ok := status.FromError(err)
+			if ok {
+				if st.Code() == codes.Unavailable ||
+					st.Code() == codes.DeadlineExceeded ||
+					st.Code() == codes.Internal ||
+					st.Code() == codes.ResourceExhausted {
+					ac.logger.Warnf("Attempt to send URL creation event failed (%s), retrying: %v", st.Code().String(), err)
+					return err
+				}
+				ac.logger.Errorf("Failed to send URL creation event (non-retryable code %s): %v", st.Code().String(), err)
+				return backoff.Permanent(err)
+			}
+			ac.logger.Warnf("Attempt to send URL creation event failed (non-gRPC error), retrying: %v", err)
+			return err
+		}
+		return nil
+	}
+
+	b := backoff.NewExponentialBackOff()
+	b.MaxElapsedTime = 15 * time.Second
+	b.InitialInterval = 50 * time.Millisecond
+	b.MaxInterval = 2 * time.Second
+	b.RandomizationFactor = 0.5
+
+	err := backoff.Retry(operation, backoff.WithContext(b, ctx))
+
 	if err != nil {
-		ac.logger.Errorf("failed to send URL creation event: %v", err)
+		ac.logger.Errorf("Failed to send URL creation event after multiple retries: %v", err)
 		return err
 	}
+
+	ac.logger.Debugf("Successfully sent URL creation event to Analytics Service.")
 	return nil
 }
 
@@ -69,11 +105,44 @@ func (ac *AnalyticsGRPCClient) SendURLRedirectEvent(ctx context.Context, event *
 		Success:     event.Success,
 		Timestamp:   event.Timestamp.UnixMicro(),
 	}
-	_, err := ac.client.RedirectShortURLEvent(ctx, req)
+
+	operation := func() error {
+		grpcCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		_, err := ac.client.RedirectShortURLEvent(grpcCtx, req)
+		if err != nil {
+			st, ok := status.FromError(err)
+			if ok {
+				if st.Code() == codes.Unavailable ||
+					st.Code() == codes.DeadlineExceeded ||
+					st.Code() == codes.Internal ||
+					st.Code() == codes.ResourceExhausted {
+					ac.logger.Warnf("Attempt to send URL creation event failed (%s), retrying: %v", st.Code().String(), err)
+					return err
+				}
+				ac.logger.Errorf("Failed to send URL creation event (non-retryable code %s): %v", st.Code().String(), err)
+				return backoff.Permanent(err)
+			}
+			ac.logger.Warnf("Attempt to send URL creation event failed (non-gRPC error), retrying: %v", err)
+			return err
+		}
+		return nil
+	}
+
+	b := backoff.NewExponentialBackOff()
+	b.MaxElapsedTime = 15 * time.Second
+	b.InitialInterval = 50 * time.Millisecond
+	b.MaxInterval = 2 * time.Second
+	b.RandomizationFactor = 0.5
+
+	err := backoff.Retry(operation, backoff.WithContext(b, ctx))
+
 	if err != nil {
-		ac.logger.Errorf("failed to send URL redirect event: %v", err)
+		ac.logger.Errorf("Failed to send URL creation event after multiple retries: %v", err)
 		return err
 	}
+
+	ac.logger.Debugf("Successfully sent URL creation event to Analytics Service.")
 	return nil
 }
 
