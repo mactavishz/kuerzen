@@ -19,6 +19,7 @@ import (
 	database "github.com/mactavishz/kuerzen/store/db"
 	"github.com/mactavishz/kuerzen/store/migrations"
 	store "github.com/mactavishz/kuerzen/store/url"
+	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
@@ -249,5 +250,37 @@ func (rci *RedirectLocalCacheInstance) startCleanupRoutine(interval time.Duratio
 	// This ticker acts as a timer to trigger the periodic cleanup.
 	for range ticker.C {
 		rci.CleanUp()
+	}
+}
+
+type RedisSimpleCache struct {
+	client *redis.Client
+	logger *zap.SugaredLogger
+}
+
+func NewRedisSimpleCache(client *redis.Client, logger *zap.SugaredLogger) *RedisSimpleCache {
+	return &RedisSimpleCache{client: client, logger: logger}
+}
+
+func (rsc *RedisSimpleCache) Get(shortURL string) (string, bool) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	val, err := rsc.client.Get(ctx, shortURL).Result()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return "", false
+		}
+		rsc.logger.Errorf("Error getting key '%s' from Redis: %v", shortURL, err)
+		return "", false
+	}
+	return val, true
+}
+
+func (rsc *RedisSimpleCache) Set(shortURL string, longURL string) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	err := rsc.client.Set(ctx, shortURL, longURL, 24*time.Hour).Err()
+	if err != nil {
+		rsc.logger.Errorf("Error setting key '%s' in Redis: %v", shortURL, err)
 	}
 }

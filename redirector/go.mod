@@ -8,6 +8,8 @@ require (
 	github.com/mactavishz/kuerzen/analytics v0.0.0-20250625101943-5e567425023b
 	github.com/mactavishz/kuerzen/middleware v0.0.0-20250625101943-5e567425023b
 	github.com/mactavishz/kuerzen/store v0.0.0-20250625101943-5e567425023b
+	github.com/redis/go-redis/v9 v9.11.0
+	go.uber.org/zap v1.27.0
 )
 
 require (
@@ -15,6 +17,7 @@ require (
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
+	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/ebitengine/purego v0.8.4 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
 	github.com/google/uuid v1.6.0 // indirect
@@ -49,7 +52,6 @@ require (
 	go.opentelemetry.io/otel v1.37.0 // indirect
 	go.opentelemetry.io/otel/trace v1.37.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/crypto v0.38.0 // indirect
 	golang.org/x/net v0.40.0 // indirect
 	golang.org/x/sync v0.14.0 // indirect
