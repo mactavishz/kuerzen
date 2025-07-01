@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"github.com/redis/go-redis/v9"
 	"log"
 	"os"
 	"os/signal"
@@ -14,6 +15,7 @@ import (
 	"github.com/mactavishz/kuerzen/analytics/grpc"
 	"github.com/mactavishz/kuerzen/middleware/loadshed"
 	"github.com/mactavishz/kuerzen/redirector/api"
+	"github.com/mactavishz/kuerzen/redirector/cache"
 	database "github.com/mactavishz/kuerzen/store/db"
 	"github.com/mactavishz/kuerzen/store/migrations"
 	store "github.com/mactavishz/kuerzen/store/url"
@@ -40,6 +42,39 @@ func main() {
 	if err != nil {
 		logger.Fatalf("Could not run database migrations: %v", err)
 	}
+
+	redisAddr := os.Getenv("REDIS_ADDR")
+	if redisAddr == "" {
+		redisAddr = "localhost:6379"
+	}
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     redisAddr,
+		Password: "",
+		DB:       0,
+		PoolSize: 10, //
+	})
+	pingCtx, pingCancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer pingCancel()
+	_, err = rdb.Ping(pingCtx).Result()
+	if err != nil {
+		logger.Fatalf("Could not connect to Redis at %s: %v", redisAddr, err)
+	}
+	logger.Infof("Successfully connected to Redis at %s", redisAddr)
+	defer func() {
+		if err := rdb.Close(); err != nil {
+			logger.Errorf("Error closing Redis client: %v", err)
+		}
+	}()
+
+	externalCache := cache.NewRedisSimpleCache(rdb, logger)
+
+	localCache, err := cache.NewRedirectLocalCacheInstance(10000)
+	if err != nil {
+		logger.Fatalf("Could not initialize local cache: %v", err)
+	}
+
+	go localCache.StartCleanupRoutine(5 * time.Minute)
+
 	app := fiber.New(fiber.Config{
 		AppName:   "redirector",
 		BodyLimit: 1024 * 1024 * 1, // 1MB
@@ -78,7 +113,7 @@ func main() {
 			logger.Errorf("Error closing database connection: %v", err)
 		}
 	}()
-	handler := api.NewRedirectHandler(urlStore, client, logger)
+	handler := api.NewRedirectHandler(urlStore, client, logger, localCache, externalCache)
 
 	app.Get("/api/v1/url/:shortURL", timeout.NewWithContext(handler.HandleRedirect, 3*time.Second))
 	app.Get("/health", func(c *fiber.Ctx) error {
