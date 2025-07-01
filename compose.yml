@@ -28,13 +28,15 @@ services:
     networks:
       - application
   cache:
-    image: valkey/valkey:8.1.1-alpine
+    image: redis:7.2.9-alpine
     env_file: [.app.env]
     ports:
       - ${CACHE_HOST_PORT}:6379
-    volumes: [./local/valkey/data:/data]
+    volumes:
+    - ./local/redis/data:/data
+    - ./meine_redis.conf:/usr/local/etc/redis/redis.conf
     healthcheck:
-      test: ["CMD-SHELL", "valkey-cli PING"]
+      test: ["CMD-SHELL", "redis-cli PING"]
       start_period: 30s
     networks:
       - application
