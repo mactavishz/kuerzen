@@ -2,11 +2,9 @@ package main
 
 import (
 	"context"
-	"errors"
 	"log"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -16,11 +14,9 @@ import (
 	"github.com/mactavishz/kuerzen/analytics/grpc"
 	"github.com/mactavishz/kuerzen/middleware/loadshed"
 	"github.com/mactavishz/kuerzen/redirector/api"
-	combinedCache "github.com/mactavishz/kuerzen/redirector/cache"
 	database "github.com/mactavishz/kuerzen/store/db"
 	"github.com/mactavishz/kuerzen/store/migrations"
 	store "github.com/mactavishz/kuerzen/store/url"
-	"github.com/redis/go-redis/v9"
 	"go.uber.org/zap"
 )
 
