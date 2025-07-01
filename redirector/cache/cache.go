@@ -44,7 +44,7 @@ type RedirectLocalCacheInstance struct {
 	keyToLeastRecentlyUsed string
 }
 
-func NewRedirectCacheInstance(maxSize int) (*RedirectLocalCacheInstance, error) {
+func NewRedirectLocalCacheInstance(maxSize int) (*RedirectLocalCacheInstance, error) {
 	if maxSize <= 1 {
 		return nil, errors.New("maxSize must be greater than 1 for RedirectLocalCacheInstance")
 	}
