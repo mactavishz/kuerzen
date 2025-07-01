@@ -143,7 +143,7 @@ func (rci *RedirectLocalCacheInstance) CleanUp() { // Receiver changed from 's' 
 }
 
 // Starts a new goroutine that periodically cleans up expired entries from the cache.
-func (rci *RedirectLocalCacheInstance) startCleanupRoutine(interval time.Duration) {
+func (rci *RedirectLocalCacheInstance) StartCleanupRoutine(interval time.Duration) {
 	// Create a new ticker that will send a signal on its channel (ticker.C) every 'interval'.
 	ticker := time.NewTicker(interval)
 	// Ensures that the ticker is stopped when the function is terminated.
