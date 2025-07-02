@@ -46,18 +46,18 @@ func (h *RedirectHandler) HandleRedirect(c *fiber.Ctx) error {
 
 	longURL, found = h.localCache.Get(shortURL)
 	if found {
-		h.logger.Debugf("Cache Hit: Local Cache for shortURL: %s", shortURL)
+		h.logger.Infof("Cache Hit: Local Cache for shortURL: %s", shortURL)
 		return h.performRedirect(c, evt, shortURL, longURL)
 	}
-	h.logger.Debugf("Cache Miss: Local Cache for shortURL: %s", shortURL)
+	h.logger.Infof("Cache Miss: Local Cache for shortURL: %s", shortURL)
 
 	longURL, found = h.externalCache.Get(shortURL)
 	if found {
-		h.logger.Debugf("Cache Hit: External Cache for shortURL: %s", shortURL)
+		h.logger.Infof("Cache Hit: External Cache for shortURL: %s", shortURL)
 		h.localCache.Set(shortURL, longURL)
 		return h.performRedirect(c, evt, shortURL, longURL)
 	}
-	h.logger.Debugf("Cache Miss: External Cache for shortURL: %s", shortURL)
+	h.logger.Infof("Cache Miss: External Cache for shortURL: %s", shortURL)
 
 	longURL, err := h.urlStore.GetLongURL(shortURL)
 	if err != nil {
@@ -77,7 +77,7 @@ func (h *RedirectHandler) HandleRedirect(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
 	}
 
-	h.logger.Debugf("DB Hit: Found %s in DB. Populating caches.", shortURL)
+	h.logger.Infof("DB Hit: Found %s in DB. Populating caches.", shortURL)
 	h.localCache.Set(shortURL, longURL)
 	h.externalCache.Set(shortURL, longURL)
 	return h.performRedirect(c, evt, shortURL, longURL)
