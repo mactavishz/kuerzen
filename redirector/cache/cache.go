@@ -21,27 +21,30 @@ const EXPIRATION_TIME = 10 * time.Minute
 //const CACHE_CLEANUP_INTERVAL = 5 * time.Minute
 
 type LocalCacheEntry struct {
-	longURL       string
-	hardTTL       time.Time
-	previousEntry string
-	nextEntry     string
+	longURL string
+	hardTTL time.Time
+	prev    string // Key to the previous element
+	next    string // Key to the next element.
 }
+
+//with prev and next the entries are concatenated with each other, thus simulating a list
 
 func NewLocalCacheEntry(lURL string) *LocalCacheEntry {
 	return &LocalCacheEntry{
-		longURL:       lURL,
-		hardTTL:       time.Now().Add(EXPIRATION_TIME),
-		previousEntry: "",
-		nextEntry:     "",
+		longURL: lURL,
+		hardTTL: time.Now().Add(EXPIRATION_TIME),
+		prev:    "",
+		next:    "",
 	}
 }
 
+// Maps are unordered, the concatenation (prev & next) of the map entries results in an order of the elements from last added to least recently used
 type RedirectLocalCacheInstance struct {
-	data                   map[string]*LocalCacheEntry
-	mu                     sync.RWMutex
-	maxSize                int
-	keyToLastAdded         string
-	keyToLeastRecentlyUsed string
+	data    map[string]*LocalCacheEntry
+	mu      sync.RWMutex
+	maxSize int
+	keyLA   string // Key to the last added entry of the local cache
+	keyLRU  string // Key to the least recently used entry of the local cache
 }
 
 func NewRedirectLocalCacheInstance(maxSize int) (*RedirectLocalCacheInstance, error) {
@@ -60,20 +63,58 @@ func (rci *RedirectLocalCacheInstance) Get(shortURL string) (string, bool) {
 	entry, found := rci.data[shortURL]
 	if !found {
 		return "", false
-	}
-	// Eviction Policy: Least Recently Used
-	if entry.previousEntry != "" {
-		//entry has prevEntry, this prevEntry has now the position of entry
-		rci.data[entry.previousEntry].nextEntry = entry.nextEntry
-		if entry.nextEntry != "" {
-			rci.data[entry.nextEntry].previousEntry = entry.previousEntry
-		} else {
-			rci.keyToLeastRecentlyUsed = entry.previousEntry
+	} else {
+		// Check if entry has expired
+		if time.Now().After(entry.hardTTL) {
+			if len(rci.data) > 1 {
+				if rci.keyLRU == shortURL {
+					// Entry is the last one in the order
+					// Predecessor of entry is the new LRU
+					rci.data[entry.prev].next = ""
+					rci.keyLRU = entry.prev
+				} else if rci.keyLA == shortURL {
+					// Entry is the first one in the order
+					// Successor of entry is the new LA
+					rci.data[entry.next].prev = ""
+					rci.keyLA = entry.next
+				} else {
+					// Entry has predecessor and successor
+					// Concatenate predecessor and successor
+					rci.data[entry.next].prev = entry.prev
+					rci.data[entry.prev].next = entry.next
+				}
+			} else {
+				// Cache is empty
+				rci.keyLRU = ""
+				rci.keyLA = ""
+			}
+			// The real delete
+			delete(rci.data, shortURL)
+			return "", false
 		}
-		rci.data[rci.keyToLastAdded].previousEntry = shortURL
-		entry.previousEntry = ""
-		entry.nextEntry = rci.keyToLastAdded
-		rci.keyToLastAdded = shortURL
+	}
+	// If there is a element for shortURL in the cache, the order of the entries must be changed
+	// Eviction Policy: Least Recently Used
+	// Cache: A <-> ... <-> D <-> E <-> F <-> ... <-> Z
+	if entry.prev != "" {
+		// Entry has a predecessor (prev is not an empty string), this predecessor should now get the position of the entry
+		// The predecessor needs a new successor or becomes the new LRU
+		rci.data[entry.prev].next = entry.next // A Key or an empty string
+		if entry.next != "" {
+			// Entry has a successor (next is not an empty string), this successor needs to know that it needs a new predecessor
+			rci.data[entry.next].prev = entry.prev
+		} else {
+			// If next == "" (empty string), it means that the entry was the least recently used in the cache
+			// This makes the predecessor the new LRU
+			rci.keyLRU = entry.prev
+		}
+		// The last to be added is now the second last to be added and must know that he needs a predecessor
+		rci.data[rci.keyLA].prev = shortURL
+		// The entry becomes the new last added. No predecessor and successor is now the second last to be added
+		entry.prev = ""
+		entry.next = rci.keyLA
+		//The cache must be informed of what was last added
+		rci.keyLA = shortURL
 	}
 	//if prevEntry == "" it means that the entry is the first entry in the cache. No order to change
 	entry.hardTTL = time.Now().Add(EXPIRATION_TIME)
@@ -83,56 +124,93 @@ func (rci *RedirectLocalCacheInstance) Get(shortURL string) (string, bool) {
 func (rci *RedirectLocalCacheInstance) Set(key string, longURL string) {
 	rci.mu.Lock()
 	defer rci.mu.Unlock()
-	if rci.maxSize == len(rci.data) {
-		var keyToTheComingLRU = rci.data[rci.keyToLeastRecentlyUsed].previousEntry
-		rci.data[keyToTheComingLRU].nextEntry = ""
-		delete(rci.data, rci.keyToLeastRecentlyUsed)
-		rci.keyToLeastRecentlyUsed = keyToTheComingLRU
-	}
-	// In both cases, a new entry is added.
-	if len(rci.data) == 0 {
-		rci.keyToLeastRecentlyUsed = key
+	// Check whether entry should be updated
+	entry, found := rci.data[key]
+	if !found {
+		// Update the concatenation in the cache
+		// If cache has only one or entry is already the LA -> order does not change
+		if len(rci.data) > 1 || rci.keyLA == key {
+			if rci.keyLRU == key {
+				// Entry has no successor and its predecessor becomes the new LRU
+				rci.data[entry.prev].next = ""
+				rci.keyLRU = entry.prev
+			}
+			if rci.keyLA != key {
+				// Entry has a successor and a predecessor. Concatenate successor and predecessor
+				rci.data[entry.next].prev = entry.prev
+				rci.data[entry.prev].next = entry.next
+			}
+			// Entry will be the new LA
+			rci.data[key].prev = ""
+			rci.data[rci.keyLA].prev = key
+			rci.data[key].next = rci.keyLA
+			rci.keyLA = key
+		}
+		// Update Entry with new longURL
+		rci.data[key].longURL = longURL
+		rci.data[key].hardTTL = time.Now().Add(EXPIRATION_TIME)
 	} else {
-		rci.data[rci.keyToLastAdded].previousEntry = key
+		// Check to see if the capacity of the cache has been reached
+		if rci.maxSize == len(rci.data) {
+			// Get the second least recently used
+			var keySLRU = rci.data[rci.keyLRU].prev
+			// SLRU becomes the new LRU
+			rci.data[keySLRU].next = ""
+			// Delete last entry
+			delete(rci.data, rci.keyLRU)
+			// Define new LRU of the cache
+			rci.keyLRU = keySLRU
+		}
+		// In both cases, a new entry is added.
+		if len(rci.data) == 0 {
+			rci.keyLRU = key
+		} else {
+			// Concatenate new element correctly
+			rci.data[rci.keyLA].prev = key
+		}
+		rci.data[key] = NewLocalCacheEntry(longURL)
+		rci.data[key].next = rci.keyLA
+		rci.keyLA = key
+		rci.data[key].prev = ""
 	}
-	rci.data[key] = NewLocalCacheEntry(longURL)
-	rci.data[key].nextEntry = rci.keyToLastAdded
-	rci.keyToLastAdded = key
-	rci.data[key].previousEntry = ""
 }
 
 func (rci *RedirectLocalCacheInstance) CleanUp() { // Receiver changed from 's' to 'rci'
 	rci.mu.Lock()
 	defer rci.mu.Unlock()
-	deletedCount := 0 // Counter for the number of entries removed during this cleanup run.
-	keysToDelete := []string{}
-	var theoreticalSize = len(rci.data)
-	for u, e := range rci.data {
+	deletedCount := 0 // Counter for the number of entries removed during this cleanup run
+	for key, entry := range rci.data {
 		// Check if the current time is after the entry's hardTTL.
-		// If true, the entry has expired.
-		if time.Now().After(e.hardTTL) {
-			if theoreticalSize > 1 {
-				if rci.keyToLeastRecentlyUsed == u {
-					rci.data[e.previousEntry].nextEntry = ""
-					rci.keyToLeastRecentlyUsed = e.previousEntry
-				} else if rci.keyToLastAdded == u {
-					rci.data[e.nextEntry].previousEntry = ""
-					rci.keyToLastAdded = e.nextEntry
+		// If true, the entry has expired -> delete the entry
+		if time.Now().After(entry.hardTTL) {
+			// Correct concatenation and correct update of the cache
+			// Check if the entry is the last in the cache
+			if len(rci.data) > 1 {
+				if rci.keyLRU == key {
+					// Entry is the last one in the order
+					// Predecessor of entry is the new LRU
+					rci.data[entry.prev].next = ""
+					rci.keyLRU = entry.prev
+				} else if rci.keyLA == key {
+					// Entry is the first one in the order
+					// Successor of entry is the new LA
+					rci.data[entry.next].prev = ""
+					rci.keyLA = entry.next
 				} else {
-					rci.data[e.nextEntry].previousEntry = e.previousEntry
-					rci.data[e.previousEntry].nextEntry = e.nextEntry
+					// Entry has predecessor and successor
+					// Concatenate predecessor and successor
+					rci.data[entry.next].prev = entry.prev
+					rci.data[entry.prev].next = entry.next
 				}
-				theoreticalSize--
 			} else {
-				rci.keyToLeastRecentlyUsed = ""
-				rci.keyToLastAdded = ""
+				// Cache is empty
+				rci.keyLRU = ""
+				rci.keyLA = ""
 			}
-			keysToDelete = append(keysToDelete, u)
+			// The real delete
+			delete(rci.data, key)
+			deletedCount++
 		}
-	}
-	for _, u := range keysToDelete {
-		delete(rci.data, u)
-		deletedCount++
 	}
 	// Log a message after a cleanup.
 	if deletedCount > 0 {
