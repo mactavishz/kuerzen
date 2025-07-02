@@ -179,37 +179,28 @@ func (rci *RedirectLocalCacheInstance) CleanUp() { // Receiver changed from 's' 
 	rci.mu.Lock()
 	defer rci.mu.Unlock()
 	deletedCount := 0 // Counter for the number of entries removed during this cleanup run
-	for key, entry := range rci.data {
-		// Check if the current time is after the entry's hardTTL.
-		// If true, the entry has expired -> delete the entry
-		if time.Now().After(entry.hardTTL) {
-			// Correct concatenation and correct update of the cache
-			// Check if the entry is the last in the cache
-			if len(rci.data) > 1 {
-				if rci.keyLRU == key {
-					// Entry is the last one in the order
-					// Predecessor of entry is the new LRU
-					rci.data[entry.prev].next = ""
-					rci.keyLRU = entry.prev
-				} else if rci.keyLA == key {
-					// Entry is the first one in the order
-					// Successor of entry is the new LA
-					rci.data[entry.next].prev = ""
-					rci.keyLA = entry.next
-				} else {
-					// Entry has predecessor and successor
-					// Concatenate predecessor and successor
-					rci.data[entry.next].prev = entry.prev
-					rci.data[entry.prev].next = entry.next
-				}
-			} else {
-				// Cache is empty
-				rci.keyLRU = ""
+	// Start at the LRU and work your way up to an entry where the TTL has not expired
+	// Use the predecessor to follow the order in the simulated linked list
+	// Find the first entry that has not yet expired, this is the new LRU
+	// Up to this entry, all can be deleted
+	maxIteration := len(rci.data)
+	key := rci.keyLRU
+	for i := 1; i <= maxIteration; i++ {
+		if time.Now().After(rci.data[key].hardTTL) {
+			if i == maxIteration {
+				delete(rci.data, key)
+				deletedCount++
 				rci.keyLA = ""
+				rci.keyLRU = ""
+				break
 			}
-			// The real delete
+			key = rci.data[key].prev
 			delete(rci.data, key)
 			deletedCount++
+		} else {
+			rci.data[key].next = ""
+			rci.keyLRU = key
+			break
 		}
 	}
 	// Log a message after a cleanup.
