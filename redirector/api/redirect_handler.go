@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"github.com/mactavishz/kuerzen/retries"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -29,7 +30,13 @@ func NewRedirectHandler(urlStore store.URLStore, client *grpc.AnalyticsGRPCClien
 func (h *RedirectHandler) HandleRedirect(c *fiber.Ctx) error {
 	shortURL := c.Params("shortURL")
 	// TODO: handle caching of redirects
-	longURL, err := h.urlStore.GetLongURL(shortURL, c.Context())
+	rfo := retries.RetryWithExponentialBackoff(h.urlStore.GetLongURL(shortURL, c.Context()))
+	longURL, ok := rfo.Rest[0].(string)
+	if !ok {
+		h.logger.Errorf("Failed to cast longURL from rfo.Rest[0] to string. Received type: %T", rfo.Rest[0])
+		return errors.New("invalid type for long URL in retry result")
+	}
+	err := rfo.Err
 	evt := &astore.URLRedirectEvent{
 		ServiceName: "redirector",
 		APIVer:      1,
@@ -41,13 +48,13 @@ func (h *RedirectHandler) HandleRedirect(c *fiber.Ctx) error {
 	if err != nil {
 		if errors.Is(err, store.ErrShortURLNotFound) {
 			h.logger.Infow("short URL not found", "shortURL", shortURL)
-			err = h.client.SendURLRedirectEvent(context.TODO(), evt)
+			err = retries.RetryWithExponentialBackoff(h.client.SendURLRedirectEvent(context.TODO(), evt)).Err
 			if err != nil {
 				h.logger.Errorf("failed to send event: %v\n", err)
 			}
 			return c.Status(fiber.StatusNotFound).SendString("Not Found")
 		}
-		err = h.client.SendURLRedirectEvent(context.TODO(), evt)
+		err = retries.RetryWithExponentialBackoff(h.client.SendURLRedirectEvent(context.TODO(), evt)).Err
 		if err != nil {
 			h.logger.Errorf("failed to send event: %v\n", err)
 		}
@@ -55,7 +62,7 @@ func (h *RedirectHandler) HandleRedirect(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
 	}
 	evt.Success = true
-	err = h.client.SendURLRedirectEvent(context.TODO(), evt)
+	err = retries.RetryWithExponentialBackoff(h.client.SendURLRedirectEvent(context.TODO(), evt)).Err
 	if err != nil {
 		h.logger.Errorf("failed to send event: %v\n", err)
 	}
