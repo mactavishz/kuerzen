@@ -393,6 +393,18 @@ func TestStartCleanupRoutine(t *testing.T) {
 	if _, ok := cache.data["s4"]; !ok {
 		t.Error("s4 should still be present")
 	}
+	if cache.keyLA != "s4" || cache.keyLRU != "s5" {
+		t.Errorf("Expected LA:s4, LRU:s5 after routine, got LA:%s, LRU:%s", cache.keyLA, cache.keyLRU)
+	}
+	if cache.data["s4"].prev != "" {
+		t.Error("s5 should have no predecessor as it is LA")
+	}
+	if cache.data["s4"].next != "s5" || cache.data["s5"].prev != "s4" {
+		t.Error("Linked list s4-s5 incorrect after routine")
+	}
+	if cache.data["s5"].next != "" {
+		t.Error("s4 should be the new end of the list")
+	}
 	time.Sleep(30 * time.Millisecond)
 	if len(cache.data) != 0 {
 		t.Errorf("Expected 0 entry after routine, got %d", len(cache.data))
