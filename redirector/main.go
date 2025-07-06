@@ -68,7 +68,7 @@ func main() {
 
 	externalCache := cache.NewRedisSimpleCache(rdb, logger)
 
-	localCache, err := cache.NewRedirectLocalCacheInstance(10000)
+	localCache, err := cache.NewRedirectLocalCacheInstance(10000, logger)
 	if err != nil {
 		logger.Fatalf("Could not initialize local cache: %v", err)
 	}

@@ -3,7 +3,6 @@ package cache
 import (
 	"context"
 	"errors"
-	"log"
 	"sync"
 	"time"
 
@@ -16,7 +15,7 @@ type CacheProvider interface {
 	Set(shortURL string, longURL string)
 }
 
-const EXPIRATION_TIME = 10 * time.Minute
+const EXPIRATION_TIME = 5 * time.Minute
 
 //const CACHE_CLEANUP_INTERVAL = 5 * time.Minute
 
@@ -27,7 +26,7 @@ type LocalCacheEntry struct {
 	next    string // Key to the next element.
 }
 
-//with prev and next the entries are concatenated with each other, thus simulating a list
+// With prev and next the entries are concatenated with each other, thus simulating a list
 
 func NewLocalCacheEntry(lURL string) *LocalCacheEntry {
 	return &LocalCacheEntry{
@@ -42,18 +41,20 @@ func NewLocalCacheEntry(lURL string) *LocalCacheEntry {
 type RedirectLocalCacheInstance struct {
 	data    map[string]*LocalCacheEntry
 	mu      sync.RWMutex
+	logger  *zap.SugaredLogger
 	maxSize int
 	keyLA   string // Key to the last added entry of the local cache
 	keyLRU  string // Key to the least recently used entry of the local cache
 }
 
-func NewRedirectLocalCacheInstance(maxSize int) (*RedirectLocalCacheInstance, error) {
+func NewRedirectLocalCacheInstance(maxSize int, logger *zap.SugaredLogger) (*RedirectLocalCacheInstance, error) {
 	if maxSize <= 1 {
 		return nil, errors.New("maxSize must be greater than 1 for RedirectLocalCacheInstance")
 	}
 	return &RedirectLocalCacheInstance{
 		data:    make(map[string]*LocalCacheEntry),
 		maxSize: maxSize,
+		logger:  logger,
 	}, nil
 }
 
@@ -175,7 +176,7 @@ func (rci *RedirectLocalCacheInstance) Set(key string, longURL string) {
 	}
 }
 
-func (rci *RedirectLocalCacheInstance) CleanUp() { // Receiver changed from 's' to 'rci'
+func (rci *RedirectLocalCacheInstance) CleanUp() {
 	rci.mu.Lock()
 	defer rci.mu.Unlock()
 	deletedCount := 0 // Counter for the number of entries removed during this cleanup run
@@ -206,9 +207,9 @@ func (rci *RedirectLocalCacheInstance) CleanUp() { // Receiver changed from 's' 
 	}
 	// Log a message after a cleanup.
 	if deletedCount > 0 {
-		log.Printf("Cache server: Removed %d expired entries during cleanup.", deletedCount)
+		rci.logger.Infof("Cache server: Removed %d expired entries during cleanup.", deletedCount)
 	} else {
-		log.Println("Cache server: No entries were removed")
+		rci.logger.Infof("Cache server: No entries were removed")
 	}
 }
 
