@@ -1,13 +1,14 @@
 package cache
 
 import (
+	"go.uber.org/zap"
 	"testing"
 	"time"
 )
 
 func TestNewRedirectLocalCacheInstance(t *testing.T) {
-
-	_, err := NewRedirectLocalCacheInstance(0)
+	logger := zap.Must(zap.NewDevelopment()).Sugar()
+	_, err := NewRedirectLocalCacheInstance(0, logger)
 	if err == nil {
 		t.Error("Expected error for maxSize <= 1, but got nil")
 	}
@@ -16,7 +17,7 @@ func TestNewRedirectLocalCacheInstance(t *testing.T) {
 		t.Errorf("Expected error message '%s', but got '%v'", expectedErrorMsg, err)
 	}
 
-	_, err = NewRedirectLocalCacheInstance(1)
+	_, err = NewRedirectLocalCacheInstance(1, logger)
 	if err == nil {
 		t.Error("Expected error for maxSize <= 1, but got nil")
 	}
@@ -24,7 +25,7 @@ func TestNewRedirectLocalCacheInstance(t *testing.T) {
 		t.Errorf("Expected error message '%s', but got '%v'", expectedErrorMsg, err)
 	}
 
-	cache, err := NewRedirectLocalCacheInstance(100)
+	cache, err := NewRedirectLocalCacheInstance(100, logger)
 	if err != nil {
 		t.Errorf("Did not expect error for valid maxSize, but got: %v", err)
 	}
@@ -43,7 +44,8 @@ func TestNewRedirectLocalCacheInstance(t *testing.T) {
 }
 
 func TestSetNewEntry(t *testing.T) {
-	cache, _ := NewRedirectLocalCacheInstance(3)
+	logger := zap.Must(zap.NewDevelopment()).Sugar()
+	cache, _ := NewRedirectLocalCacheInstance(3, logger)
 
 	cache.Set("short1", "long1")
 	if len(cache.data) != 1 {
@@ -131,7 +133,8 @@ func TestSetNewEntry(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
-	cache, _ := NewRedirectLocalCacheInstance(3)
+	logger := zap.Must(zap.NewDevelopment()).Sugar()
+	cache, _ := NewRedirectLocalCacheInstance(3, logger)
 
 	cache.Set("short1", "long1") // LA: short1, LRU: short1
 	cache.Set("short2", "long2") // LA: short2, LRU: short1
@@ -245,7 +248,8 @@ func TestGet(t *testing.T) {
 }
 
 func TestCleanUp(t *testing.T) {
-	cache, _ := NewRedirectLocalCacheInstance(5)
+	logger := zap.Must(zap.NewDevelopment()).Sugar()
+	cache, _ := NewRedirectLocalCacheInstance(5, logger)
 
 	cache.Set("s1", "l1")
 	cache.Set("s2", "l2")
@@ -307,21 +311,22 @@ func TestCleanUp(t *testing.T) {
 }
 
 func TestStartCleanupRoutine(t *testing.T) {
-	cache, _ := NewRedirectLocalCacheInstance(5)
+	logger := zap.Must(zap.NewDevelopment()).Sugar()
+	cache, _ := NewRedirectLocalCacheInstance(5, logger)
 	cache.Set("s1", "l1")
 	cache.Set("s2", "l2")
 	cache.Set("s3", "l3")
 	cache.Set("s4", "l4")
 	cache.Set("s5", "l5")
-	cache.data["s1"].hardTTL = time.Now().Add(25 * time.Millisecond)
-	cache.data["s2"].hardTTL = time.Now().Add(55 * time.Millisecond)
-	cache.data["s3"].hardTTL = time.Now().Add(57 * time.Millisecond)
-	cache.data["s4"].hardTTL = time.Now().Add(115 * time.Millisecond)
-	cache.data["s5"].hardTTL = time.Now().Add(145 * time.Millisecond)
+	cache.data["s1"].hardTTL = time.Now().Add(250 * time.Millisecond)
+	cache.data["s2"].hardTTL = time.Now().Add(550 * time.Millisecond)
+	cache.data["s3"].hardTTL = time.Now().Add(570 * time.Millisecond)
+	cache.data["s4"].hardTTL = time.Now().Add(1150 * time.Millisecond)
+	cache.data["s5"].hardTTL = time.Now().Add(1450 * time.Millisecond)
 
-	go cache.StartCleanupRoutine(30 * time.Millisecond)
+	go cache.StartCleanupRoutine(300 * time.Millisecond)
 
-	time.Sleep(31 * time.Millisecond)
+	time.Sleep(310 * time.Millisecond)
 
 	if _, found := cache.Get("s1"); found {
 		t.Error("s1 should have been cleaned up by routine")
@@ -348,7 +353,7 @@ func TestStartCleanupRoutine(t *testing.T) {
 		t.Error("s2 should be the new end of the list")
 	}
 
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(300 * time.Millisecond)
 	if _, found := cache.Get("s2"); found {
 		t.Error("s2 should have been cleaned up by routine")
 	}
@@ -371,7 +376,7 @@ func TestStartCleanupRoutine(t *testing.T) {
 		t.Error("s4 should be the new end of the list")
 	}
 
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(300 * time.Millisecond)
 	if len(cache.data) != 2 {
 		t.Errorf("Expected 2 entry after routine, got %d", len(cache.data))
 	}
@@ -382,8 +387,8 @@ func TestStartCleanupRoutine(t *testing.T) {
 		t.Error("s4 should still be present")
 	}
 	cache.Get("s4")
-	cache.data["s4"].hardTTL = time.Now().Add(35 * time.Millisecond)
-	time.Sleep(30 * time.Millisecond)
+	cache.data["s4"].hardTTL = time.Now().Add(350 * time.Millisecond)
+	time.Sleep(300 * time.Millisecond)
 	if len(cache.data) != 2 {
 		t.Errorf("Expected 2 entry after routine, got %d", len(cache.data))
 	}
@@ -405,8 +410,11 @@ func TestStartCleanupRoutine(t *testing.T) {
 	if cache.data["s5"].next != "" {
 		t.Error("s4 should be the new end of the list")
 	}
-	time.Sleep(30 * time.Millisecond)
+	time.Sleep(300 * time.Millisecond)
 	if len(cache.data) != 0 {
 		t.Errorf("Expected 0 entry after routine, got %d", len(cache.data))
+	}
+	if cache.keyLA != "" || cache.keyLRU != "" {
+		t.Errorf("Expected empty pointers after full cleanup, got LA:%s, LRU:%s", cache.keyLA, cache.keyLRU)
 	}
 }
