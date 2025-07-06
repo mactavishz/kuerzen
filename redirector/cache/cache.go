@@ -126,7 +126,7 @@ func (rci *RedirectLocalCacheInstance) Set(key string, longURL string) {
 	defer rci.mu.Unlock()
 	// Check whether entry should be updated
 	entry, found := rci.data[key]
-	if !found {
+	if found {
 		// Update the concatenation in the cache
 		// If cache has only one or entry is already the LA -> order does not change
 		if len(rci.data) > 1 || rci.keyLA == key {
