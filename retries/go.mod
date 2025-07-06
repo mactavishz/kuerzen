@@ -1,4 +1,4 @@
-module retries
+module github.com/mactavishz/kuerzen/retries
 
 go 1.24
 
