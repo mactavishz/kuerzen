@@ -194,8 +194,9 @@ func (rci *RedirectLocalCacheInstance) CleanUp() { // Receiver changed from 's' 
 				rci.keyLRU = ""
 				break
 			}
+			deleteKey := key
 			key = rci.data[key].prev
-			delete(rci.data, key)
+			delete(rci.data, deleteKey)
 			deletedCount++
 		} else {
 			rci.data[key].next = ""
