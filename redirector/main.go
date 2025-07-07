@@ -98,7 +98,7 @@ func main() {
 	}
 	app.Use(loadshedMiddleware)
 
-	urlStore := store.NewPostgresURLStore(db.DB)
+	urlStore := store.NewPostgresURLStore(db.DB, logger)
 	client, err := grpc.NewAnalyticsGRPCClient(os.Getenv("ANALYTICS_SERVICE_URL"), logger)
 	if err != nil {
 		logger.Fatalf("Could not set up grpc client: %v", err)

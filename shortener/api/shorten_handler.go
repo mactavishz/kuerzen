@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/mactavishz/kuerzen/retries"
 	"os"
 	"time"
 
@@ -52,7 +53,7 @@ func (h *ShortenHandler) HandleShortenURL(c *fiber.Ctx) error {
 	err := c.BodyParser(req)
 	if err != nil {
 		h.logger.Infow("invalid request payload", "payload", string(c.Body()))
-		err = h.client.SendURLCreationEvent(context.TODO(), evt)
+		err = retries.RetryWithExponentialBackoff(h.client.SendURLCreationEvent(context.TODO(), evt)).Err
 		if err != nil {
 			h.logger.Errorf("failed to send event: %v\n", err)
 		}
@@ -65,7 +66,7 @@ func (h *ShortenHandler) HandleShortenURL(c *fiber.Ctx) error {
 	err = validate.Struct(req)
 	if err != nil {
 		h.logger.Infow("invalid url", "url", req.URL)
-		err = h.client.SendURLCreationEvent(context.TODO(), evt)
+		err = retries.RetryWithExponentialBackoff(h.client.SendURLCreationEvent(context.TODO(), evt)).Err
 		if err != nil {
 			h.logger.Errorf("failed to send event: %v\n", err)
 		}
@@ -74,9 +75,9 @@ func (h *ShortenHandler) HandleShortenURL(c *fiber.Ctx) error {
 		})
 	}
 	shortURL := lib.ToShortURL(req.URL, SHORT_URL_LENGTH)
-	err = h.urlStore.CreateShortURL(shortURL, req.URL)
+	err = retries.RetryWithExponentialBackoff(h.urlStore.CreateShortURL(shortURL, req.URL, c.Context())).Err
 	if err != nil {
-		evtErr := h.client.SendURLCreationEvent(context.TODO(), evt)
+		evtErr := retries.RetryWithExponentialBackoff(h.client.SendURLCreationEvent(context.TODO(), evt)).Err
 		if evtErr != nil {
 			h.logger.Errorf("failed to send event: %v\n", evtErr)
 		}
@@ -93,7 +94,7 @@ func (h *ShortenHandler) HandleShortenURL(c *fiber.Ctx) error {
 		}
 	}
 	evt.Success = true
-	err = h.client.SendURLCreationEvent(context.TODO(), evt)
+	err = retries.RetryWithExponentialBackoff(h.client.SendURLCreationEvent(context.TODO(), evt)).Err
 	if err != nil {
 		h.logger.Errorf("failed to send event: %v\n", err)
 	}

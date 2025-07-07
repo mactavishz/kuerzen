@@ -5,8 +5,11 @@ import (
 	"time"
 
 	pb "github.com/mactavishz/kuerzen/analytics/pb"
+	"github.com/mactavishz/kuerzen/retries"
 	store "github.com/mactavishz/kuerzen/store/analytics"
 	"go.uber.org/zap"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -44,7 +47,7 @@ func NewAnalyticsGRPCClient(addr string, logger *zap.SugaredLogger) (*AnalyticsG
 	}, nil
 }
 
-func (ac *AnalyticsGRPCClient) SendURLCreationEvent(ctx context.Context, event *store.URLCreationEvent) error {
+func (ac *AnalyticsGRPCClient) SendURLCreationEvent(ctx context.Context, event *store.URLCreationEvent) func() retries.RetryableFuncObject {
 	req := &pb.CreateShortURLEventRequest{
 		ServiceName: event.ServiceName,
 		Url:         event.URL,
@@ -52,15 +55,43 @@ func (ac *AnalyticsGRPCClient) SendURLCreationEvent(ctx context.Context, event *
 		Success:     event.Success,
 		Timestamp:   event.Timestamp.UnixMicro(),
 	}
-	_, err := ac.client.CreateShortURLEvent(ctx, req)
-	if err != nil {
-		ac.logger.Errorf("failed to send URL creation event: %v", err)
-		return err
+	return func() retries.RetryableFuncObject {
+		var rfo retries.RetryableFuncObject
+		rfo.Ctx = ctx
+		rfo.Logger = ac.logger
+		select {
+		case <-ctx.Done():
+			ac.logger.Infof("SendURLCreationEvent operation cancelled: %v", ctx.Err())
+			rfo.Err = ctx.Err()
+			return rfo
+		default:
+		}
+		grpcCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		_, err := ac.client.CreateShortURLEvent(grpcCtx, req)
+		defer cancel()
+		if err != nil {
+			st, ok := status.FromError(err)
+			if ok {
+				if st.Code() == codes.Unavailable || st.Code() == codes.DeadlineExceeded || st.Code() == codes.Internal || st.Code() == codes.ResourceExhausted {
+					ac.logger.Infof("Attempt to send URL creation event failed (%s), retrying: %v", st.Code().String(), err)
+					rfo.Err = retries.ErrTransient
+					return rfo
+				}
+				ac.logger.Errorf("Failed to send URL creation event (non-retryable gRPC error %s): %v", st.Code().String(), err)
+				rfo.Err = err
+				return rfo
+			}
+			ac.logger.Infof("Attempt to send URL creation event failed (non-gRPC error), retrying: %v", err)
+			rfo.Err = retries.ErrTransient
+			return rfo
+		}
+		ac.logger.Infof("Successfully sent URL creation event to Analytics Service.")
+		rfo.Err = nil
+		return rfo
 	}
-	return nil
 }
 
-func (ac *AnalyticsGRPCClient) SendURLRedirectEvent(ctx context.Context, event *store.URLRedirectEvent) error {
+func (ac *AnalyticsGRPCClient) SendURLRedirectEvent(ctx context.Context, event *store.URLRedirectEvent) func() retries.RetryableFuncObject {
 	req := &pb.RedirectShortURLEventRequest{
 		ServiceName: event.ServiceName,
 		ShortUrl:    event.ShortURL,
@@ -69,12 +100,40 @@ func (ac *AnalyticsGRPCClient) SendURLRedirectEvent(ctx context.Context, event *
 		Success:     event.Success,
 		Timestamp:   event.Timestamp.UnixMicro(),
 	}
-	_, err := ac.client.RedirectShortURLEvent(ctx, req)
-	if err != nil {
-		ac.logger.Errorf("failed to send URL redirect event: %v", err)
-		return err
+	return func() retries.RetryableFuncObject {
+		var rfo retries.RetryableFuncObject
+		rfo.Ctx = ctx
+		rfo.Logger = ac.logger
+		select {
+		case <-ctx.Done():
+			ac.logger.Infof("SendURLRedirectEvent operation cancelled: %v", ctx.Err())
+			rfo.Err = ctx.Err()
+			return rfo
+		default:
+		}
+		grpcCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		_, err := ac.client.RedirectShortURLEvent(grpcCtx, req)
+		defer cancel()
+		if err != nil {
+			st, ok := status.FromError(err)
+			if ok {
+				if st.Code() == codes.Unavailable || st.Code() == codes.DeadlineExceeded || st.Code() == codes.Internal || st.Code() == codes.ResourceExhausted {
+					ac.logger.Infof("Attempt to send URL redirect event failed (%s), retrying: %v", st.Code().String(), err)
+					rfo.Err = retries.ErrTransient
+					return rfo
+				}
+				ac.logger.Errorf("Failed to send URL redirect event (non-retryable gRPC error %s): %v", st.Code().String(), err)
+				rfo.Err = err
+				return rfo
+			}
+			ac.logger.Infof("Attempt to send URL redirect event failed (non-gRPC error), retrying: %v", err)
+			rfo.Err = retries.ErrTransient
+			return rfo
+		}
+		ac.logger.Infof("Successfully sent URL redirect event to Analytics Service.")
+		rfo.Err = nil
+		return rfo
 	}
-	return nil
 }
 
 func (ac *AnalyticsGRPCClient) Close() error {
