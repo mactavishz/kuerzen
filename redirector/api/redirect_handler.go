@@ -87,9 +87,12 @@ func (h *RedirectHandler) HandleRedirect(c *fiber.Ctx) error {
 	h.logger.Infof("DB Hit: Found %s in DB. Populating caches.", shortURL)
 	h.localCache.Set(shortURL, longURL)
 	h.externalCache.Set(shortURL, longURL)
+	return h.performRedirect(c, evt, shortURL, longURL)
+}
 
-	evt.Success = true
-	err = retries.RetryWithExponentialBackoff(h.client.SendURLRedirectEvent(context.TODO(), evt)).Err
+func (h *RedirectHandler) performRedirect(c *fiber.Ctx, urlRE *astore.URLRedirectEvent, shortURL string, longURL string) error {
+	urlRE.Success = true
+	err := retries.RetryWithExponentialBackoff(h.client.SendURLRedirectEvent(context.TODO(), urlRE)).Err
 	if err != nil {
 		h.logger.Errorf("failed to send event for %s: %v\n", shortURL, err)
 	}
