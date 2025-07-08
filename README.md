@@ -35,6 +35,7 @@ go work use ./middleware
 go work use ./shortener
 go work use ./redirector
 go work use ./analytics
+go work use ./retries
 ```
 
 Because go workspace is only for local development, the `go.work` file is not included in the repository.
