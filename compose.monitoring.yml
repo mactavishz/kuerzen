@@ -1,4 +1,4 @@
-name: kuerzen
+name: kuerzen-monitoring
 services:
   # Monitoring Stack
   grafana:
