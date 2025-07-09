@@ -31,7 +31,7 @@ services:
     image: redis:7.2.9-alpine
     env_file: [.app.env]
     ports:
-      - ${REDIS_ADDR}:6379
+      - ${CACHE_HOST_PORT}:6379
     volumes:
     - ./local/redis/data:/data
     - ./meine_redis.conf:/usr/local/etc/redis/redis.conf
