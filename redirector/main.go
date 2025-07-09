@@ -2,12 +2,13 @@ package main
 
 import (
 	"context"
-	"github.com/redis/go-redis/v9"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 
 	"github.com/ansrivas/fiberprometheus/v2"
 	"github.com/gofiber/fiber/v2"
@@ -23,6 +24,7 @@ import (
 )
 
 const DEFAULT_PORT = "3001"
+const DEFAULT_CACHE_PORT = "6379"
 
 func main() {
 	// We use sugar logger for better readability in development
@@ -43,9 +45,9 @@ func main() {
 		logger.Fatalf("Could not run database migrations: %v", err)
 	}
 
-	redisAddr := os.Getenv("REDIS_ADDR")
+	redisAddr := os.Getenv("CACHE_URL")
 	if redisAddr == "" {
-		redisAddr = "localhost:6379"
+		redisAddr = "localhost:" + DEFAULT_CACHE_PORT
 	}
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     redisAddr,

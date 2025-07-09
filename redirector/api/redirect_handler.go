@@ -3,8 +3,9 @@ package api
 import (
 	"context"
 	"errors"
-	"github.com/mactavishz/kuerzen/retries"
 	"time"
+
+	"github.com/mactavishz/kuerzen/retries"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/mactavishz/kuerzen/analytics/grpc"
