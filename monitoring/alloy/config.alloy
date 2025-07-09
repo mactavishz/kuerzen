@@ -14,7 +14,9 @@ discovery.relabel "logs" {
 
   rule {
     source_labels = ["__meta_docker_container_id"]
+    regex         = "(.{12})"
     target_label  = "container_id"
+    replacement   = "${1}"
   }
 
   rule {
@@ -60,38 +62,36 @@ discovery.relabel "metrics" {
     action        = "keep"
   }
 
-  // Set the correct port based on service
+  // Use container IP and dynamically discovered port
+  // This approach uses the first exposed port from the container
   rule {
-    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
-    regex         = "shortener"
+    source_labels = ["__meta_docker_container_network_ip", "__meta_docker_container_port_private"]
+    regex         = "(.+);(.+)"
     target_label  = "__address__"
-    replacement   = "shortener:3000"
+    replacement   = "${1}:${2}"
   }
 
-  rule {
-    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
-    regex         = "redirector"
-    target_label  = "__address__"
-    replacement   = "redirector:3001"
-  }
-
-  rule {
-    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
-    regex         = "analytics"
-    target_label  = "__address__"
-    replacement   = "analytics:3002"
-  }
-
+  // Add container name for identification
   rule {
     source_labels = ["__meta_docker_container_name"]
     target_label  = "container"
   }
 
+  // Add container ID for unique identification
+  rule {
+    source_labels = ["__meta_docker_container_id"]
+    regex         = "(.{12})"
+    target_label  = "container_id"
+    replacement   = "${1}"
+  }
+
+  // Add service name
   rule {
     source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
     target_label  = "service"
   }
 
+  // Add project name
   rule {
     source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
     target_label  = "project"
@@ -112,7 +112,7 @@ prometheus.scrape "go_services" {
 // Self-monitoring - Alloy metrics
 prometheus.scrape "alloy" {
   targets = [{
-    __address__ = "localhost:12345",
+    __address__ = "alloy:12345",
     service     = "alloy",
   }]
   forward_to = [prometheus.remote_write.default.receiver]
