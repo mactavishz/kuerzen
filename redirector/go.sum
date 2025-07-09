@@ -61,6 +61,8 @@ github.com/mactavishz/kuerzen/analytics v0.0.0-20250625101943-5e567425023b h1:oq
 github.com/mactavishz/kuerzen/analytics v0.0.0-20250625101943-5e567425023b/go.mod h1:qi9L/qTMNeuUalsH1OdYiP7TYFj/e3kIprFttoTiFWE=
 github.com/mactavishz/kuerzen/middleware v0.0.0-20250625101943-5e567425023b h1:Axp6NvGhoNFvhcq/xKma33OGaxblO3ikdKnQaYGvtnI=
 github.com/mactavishz/kuerzen/middleware v0.0.0-20250625101943-5e567425023b/go.mod h1:NFNru9qguQz5OxTp2v8XpW1pFUghotRNImfS7HA3MVg=
+github.com/mactavishz/kuerzen/retries v0.0.0-20250709120248-51ccbc0a7a86 h1:7Kew4CHsBNzS6d3z9ieKYR8DOROUrjqxUbyv4nzMAuA=
+github.com/mactavishz/kuerzen/retries v0.0.0-20250709120248-51ccbc0a7a86/go.mod h1:9wKBssxebbXgyaubiR/dwDMjJEieugGmnU9qZsimcDw=
 github.com/mactavishz/kuerzen/store v0.0.0-20250625101943-5e567425023b h1:Bh4mlxTuU592tsVjtBBTDNQkveIYX6qrdgOm+7JGn4g=
 github.com/mactavishz/kuerzen/store v0.0.0-20250625101943-5e567425023b/go.mod h1:45krbG3gsVlvYDrj9UXoVGRbHOJJ/+XAl5/dkQd8dsM=
 github.com/mattn/go-colorable v0.1.14 h1:9A9LHSqF/7dyVVX6g0U9cwm9pG3kP9gSzcuIPHPsaIE=

@@ -1,12 +1,15 @@
 module github.com/mactavishz/kuerzen/redirector
 
-go 1.23.4
+go 1.24
+
+toolchain go1.24.5
 
 require (
 	github.com/ansrivas/fiberprometheus/v2 v2.11.0
 	github.com/gofiber/fiber/v2 v2.52.8
 	github.com/mactavishz/kuerzen/analytics v0.0.0-20250625101943-5e567425023b
 	github.com/mactavishz/kuerzen/middleware v0.0.0-20250625101943-5e567425023b
+	github.com/mactavishz/kuerzen/retries v0.0.0-20250709120248-51ccbc0a7a86
 	github.com/mactavishz/kuerzen/store v0.0.0-20250625101943-5e567425023b
 	github.com/redis/go-redis/v9 v9.11.0
 	go.uber.org/zap v1.27.0
