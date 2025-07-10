@@ -138,3 +138,7 @@ from(bucket: "kuerzen_analytics")
 ### Monitoring
 
 Please refer to the [monitoring/README.md](monitoring/README.md) for details.
+
+## Production Deployment
+
+Please refer to the [production/README.md](production/README.md) for details on how to deploy the application in production in a Docker Swarm cluster.
