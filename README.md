@@ -12,6 +12,10 @@ A simple distributed URL shortener that scales with comprehensive monitoring and
 - **Health Checks**: Comprehensive health monitoring for all services
 - **Local Development Support**: Full containerization with hot-reload for development
 
+## Architecture
+
+You can find the architecture diagram in [assets](./assets/architecture.excalidraw) directory. You can use [Excalidraw](https://excalidraw.com/) to view and edit the diagram.
+
 ## Development
 
 ### Prerequisites
