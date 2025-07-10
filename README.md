@@ -139,6 +139,16 @@ from(bucket: "kuerzen_analytics")
 
 Please refer to the [monitoring/README.md](monitoring/README.md) for details.
 
+## Testing
+
+### Unit Tests
+
+Run the following command in the root of the project to run all unit tests:
+
+```bash
+./test.sh
+```
+
 ## Production Deployment
 
 Please refer to the [production/README.md](production/README.md) for details on how to deploy the application in production in a Docker Swarm cluster.
