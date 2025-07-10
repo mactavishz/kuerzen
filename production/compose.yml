@@ -1,0 +1,224 @@
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:17-alpine
+    env_file:
+      - .prod.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - kuerzen-network
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kuerzen_user -d kuerzen_db"]
+      start_period: 30s
+
+  # InfluxDB for Analytics
+  analytics-db:
+    image: influxdb:2-alpine
+    env_file:
+      - .prod.env
+    volumes:
+      - influxdb_data:/var/lib/influxdb2
+      - influxdb_config:/etc/influxdb2
+    networks:
+      - kuerzen-network
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    healthcheck:
+      test: ["CMD-SHELL", "influx ping"]
+      start_period: 30s
+
+  # Redis Cache
+  cache:
+    image: redis:7.2.9-alpine
+    command: redis-server --appendonly yes --maxmemory 100mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    networks:
+      - kuerzen-network
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping"]
+      start_period: 30s
+
+  # Analytics Service
+  analytics:
+    image: ${DOCKER_HUB_USER:-kuerzen}/kuerzen-analytics:latest
+    build:
+      context: ..
+      dockerfile: analytics/Dockerfile
+    env_file:
+      - .prod.env
+    networks:
+      - kuerzen-network
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 512m
+        reservations:
+          memory: 256m
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+    depends_on:
+      - analytics-db
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3002/health || exit 1"]
+      start_period: 30s
+
+  # URL Shortener Service
+  shortener:
+    image: ${DOCKER_HUB_USER:-kuerzen}/kuerzen-shortener:latest
+    build:
+      context: ..
+      dockerfile: shortener/Dockerfile
+    env_file:
+      - .prod.env
+    networks:
+      - kuerzen-network
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 256m
+        reservations:
+          memory: 128m
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+    depends_on:
+      - db
+      - cache
+      - analytics
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/health || exit 1"]
+      start_period: 30s
+
+  # URL Redirector Service
+  redirector:
+    image: ${DOCKER_HUB_USER:-kuerzen}/kuerzen-redirector:latest
+    build:
+      context: ..
+      dockerfile: redirector/Dockerfile
+    env_file:
+      - .prod.env
+    networks:
+      - kuerzen-network
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: 256m
+        reservations:
+          memory: 128m
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+    depends_on:
+      - db
+      - cache
+      - analytics
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:3001/health || exit 1"]
+      start_period: 30s
+
+  # API Gateway
+  api-gateway:
+    image: ${DOCKER_HUB_USER:-kuerzen}/kuerzen-api-gateway:latest
+    build:
+      context: ../api-gateway
+      dockerfile: Dockerfile
+    env_file:
+      - .prod.env
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - kuerzen-network
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          memory: ${GATEWAY_MEMORY_LIMIT:-128m}
+        reservations:
+          memory: 64m
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+        order: start-first
+    depends_on:
+      - shortener
+      - redirector
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost/health || exit 1"]
+      start_period: 30s
+
+networks:
+  kuerzen-network:
+    name: kuerzen-network
+    driver: overlay
+    attachable: true
+
+volumes:
+  postgres_data:
+    driver: local
+  influxdb_data:
+    driver: local
+  influxdb_config:
+    driver: local
+  redis_data:
+    driver: local
