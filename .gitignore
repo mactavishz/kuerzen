@@ -11,8 +11,7 @@ go.work.sum
 
 # env
 .env
-.monitoring.env
-.app.env
+.*.env
 
 # data
 local/
