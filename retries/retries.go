@@ -3,10 +3,11 @@ package retries
 import (
 	"context"
 	"errors"
-	"go.uber.org/zap"
 	"math"
 	"math/rand"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 // AllAt is a flexible type that acts as a container for diverse data types.
@@ -24,7 +25,7 @@ type RetryableFuncObject struct {
 // This function type is designed to be implemented by a Closure.
 // A Closure allows capturing necessary data.
 // By using this standardized signature, several different functions (e.g. CreateShortURL, GetLongURL, SendURLCreationEvent)
-// can be used within the RetryWithExponentialBackoff logic, regardless of their original parameters or their specific task.
+// can be used within the Retry logic, regardless of their original parameters or their specific task.
 type RetryableFunc func() RetryableFuncObject
 
 const (
@@ -38,9 +39,10 @@ var ErrMaxElapsedTimeExceeded = errors.New("max elapsed time for operation excee
 var ErrRetriesExhausted = errors.New("operation failed after all retries exhausted")
 var ErrTransient = errors.New("transient error, retry")
 
-// The RetryWithExponentialBackoff simply repeats the function calls
+// The Retry simply repeats the function calls
 // and passes the error or success it receives from the RetryableFunc at the end
-func RetryWithExponentialBackoff(rf RetryableFunc) RetryableFuncObject {
+// Ref: https://aws.amazon.com/blogs/architecture/exponential-backoff-and-jitter/
+func Retry(rf RetryableFunc) RetryableFuncObject {
 	startTime := time.Now()
 	sleep := initialSleepInterval
 	var rfo RetryableFuncObject

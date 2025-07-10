@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/mactavishz/kuerzen/retries"
 	"os"
 	"time"
+
+	"github.com/mactavishz/kuerzen/retries"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
@@ -53,7 +54,7 @@ func (h *ShortenHandler) HandleShortenURL(c *fiber.Ctx) error {
 	err := c.BodyParser(req)
 	if err != nil {
 		h.logger.Infow("invalid request payload", "payload", string(c.Body()))
-		err = retries.RetryWithExponentialBackoff(h.client.SendURLCreationEvent(context.TODO(), evt)).Err
+		err = retries.Retry(h.client.SendURLCreationEvent(context.TODO(), evt)).Err
 		if err != nil {
 			h.logger.Errorf("failed to send event: %v\n", err)
 		}
@@ -66,7 +67,7 @@ func (h *ShortenHandler) HandleShortenURL(c *fiber.Ctx) error {
 	err = validate.Struct(req)
 	if err != nil {
 		h.logger.Infow("invalid url", "url", req.URL)
-		err = retries.RetryWithExponentialBackoff(h.client.SendURLCreationEvent(context.TODO(), evt)).Err
+		err = retries.Retry(h.client.SendURLCreationEvent(context.TODO(), evt)).Err
 		if err != nil {
 			h.logger.Errorf("failed to send event: %v\n", err)
 		}
@@ -75,9 +76,9 @@ func (h *ShortenHandler) HandleShortenURL(c *fiber.Ctx) error {
 		})
 	}
 	shortURL := lib.ToShortURL(req.URL, SHORT_URL_LENGTH)
-	err = retries.RetryWithExponentialBackoff(h.urlStore.CreateShortURL(shortURL, req.URL, c.Context())).Err
+	err = retries.Retry(h.urlStore.CreateShortURL(shortURL, req.URL, c.Context())).Err
 	if err != nil {
-		evtErr := retries.RetryWithExponentialBackoff(h.client.SendURLCreationEvent(context.TODO(), evt)).Err
+		evtErr := retries.Retry(h.client.SendURLCreationEvent(context.TODO(), evt)).Err
 		if evtErr != nil {
 			h.logger.Errorf("failed to send event: %v\n", evtErr)
 		}
@@ -94,7 +95,7 @@ func (h *ShortenHandler) HandleShortenURL(c *fiber.Ctx) error {
 		}
 	}
 	evt.Success = true
-	err = retries.RetryWithExponentialBackoff(h.client.SendURLCreationEvent(context.TODO(), evt)).Err
+	err = retries.Retry(h.client.SendURLCreationEvent(context.TODO(), evt)).Err
 	if err != nil {
 		h.logger.Errorf("failed to send event: %v\n", err)
 	}

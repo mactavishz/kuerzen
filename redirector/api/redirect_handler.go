@@ -61,7 +61,7 @@ func (h *RedirectHandler) HandleRedirect(c *fiber.Ctx) error {
 	}
 	h.logger.Infof("Cache Miss: External Cache for shortURL: %s", shortURL)
 
-	rfo := retries.RetryWithExponentialBackoff(h.urlStore.GetLongURL(shortURL, c.Context()))
+	rfo := retries.Retry(h.urlStore.GetLongURL(shortURL, c.Context()))
 	longURL, ok := rfo.Rest[0].(string)
 	if !ok {
 		h.logger.Errorf("Failed to cast longURL from rfo.Rest[0] to string. Received type: %T", rfo.Rest[0])
@@ -71,13 +71,13 @@ func (h *RedirectHandler) HandleRedirect(c *fiber.Ctx) error {
 	if err != nil {
 		if errors.Is(err, store.ErrShortURLNotFound) {
 			h.logger.Infow("short URL not found", "shortURL", shortURL)
-			err = retries.RetryWithExponentialBackoff(h.client.SendURLRedirectEvent(context.TODO(), evt)).Err
+			err = retries.Retry(h.client.SendURLRedirectEvent(context.TODO(), evt)).Err
 			if err != nil {
 				h.logger.Errorf("failed to send event: %v\n", err)
 			}
 			return c.Status(fiber.StatusNotFound).SendString("Not Found")
 		}
-		err = retries.RetryWithExponentialBackoff(h.client.SendURLRedirectEvent(context.TODO(), evt)).Err
+		err = retries.Retry(h.client.SendURLRedirectEvent(context.TODO(), evt)).Err
 		if err != nil {
 			h.logger.Errorf("failed to send event: %v\n", err)
 		}
@@ -93,7 +93,7 @@ func (h *RedirectHandler) HandleRedirect(c *fiber.Ctx) error {
 
 func (h *RedirectHandler) performRedirect(c *fiber.Ctx, urlRE *astore.URLRedirectEvent, shortURL string, longURL string) error {
 	urlRE.Success = true
-	err := retries.RetryWithExponentialBackoff(h.client.SendURLRedirectEvent(context.TODO(), urlRE)).Err
+	err := retries.Retry(h.client.SendURLRedirectEvent(context.TODO(), urlRE)).Err
 	if err != nil {
 		h.logger.Errorf("failed to send event for %s: %v\n", shortURL, err)
 	}
